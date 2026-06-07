@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -45,15 +46,17 @@ export default async function WorkoutsPage() {
       : {};
 
   return (
-    <WorkoutsHub
-      userId={user.id}
-      templates={templates}
-      sessions={sessions}
-      routineDefaults={routineDefaults}
-      lastPerformed={lastPerformed}
-      stats={stats}
-      activeSession={activeSessionDetail}
-      activeDefaults={activeDefaults}
-    />
+    <Suspense fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>}>
+      <WorkoutsHub
+        userId={user.id}
+        templates={templates}
+        sessions={sessions}
+        routineDefaults={routineDefaults}
+        lastPerformed={lastPerformed}
+        stats={stats}
+        activeSession={activeSessionDetail}
+        activeDefaults={activeDefaults}
+      />
+    </Suspense>
   );
 }

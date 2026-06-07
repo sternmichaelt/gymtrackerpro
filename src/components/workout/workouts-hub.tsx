@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Calendar, ChevronRight, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { ActiveWorkout } from "@/components/workout/active-workout";
+import { CompletedWorkoutsSection } from "@/components/workout/completed-workouts-section";
 import { RoutineCard } from "@/components/workout/routine-card";
 import { WorkoutLoader } from "@/components/workout/workout-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatWorkoutDate } from "@/lib/workout-utils";
-import { workoutDurationMinutes } from "@/lib/analytics";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 import type { WorkoutLoaderProps } from "@/components/workout/workout-loader";
 
@@ -58,6 +58,8 @@ export function WorkoutsHub({
   activeDefaults,
 }: WorkoutsHubProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const savedWorkoutId = searchParams.get("saved");
   const init = useWorkoutStore((s) => s.init);
   const workout = useWorkoutStore((s) => s.workout);
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
@@ -102,6 +104,15 @@ export function WorkoutsHub({
   const handleComplete = () => {
     router.refresh();
   };
+
+  useEffect(() => {
+    if (!savedWorkoutId) return;
+    toast.success("Workout saved!");
+    const timer = window.setTimeout(() => {
+      router.replace("/workouts");
+    }, 8000);
+    return () => window.clearTimeout(timer);
+  }, [savedWorkoutId, router]);
 
   if (isResuming) {
     return (
@@ -195,55 +206,10 @@ export function WorkoutsHub({
         </Button>
       </div>
 
-      {sessions.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Recent Workouts</h2>
-            <Button asChild variant="ghost" size="sm">
-              <Link href="/history">See all</Link>
-            </Button>
-          </div>
-          {sessions.slice(0, 5).map((session) => (
-            <Link key={session.id} href={`/workouts/${session.id}`}>
-              <Card className="transition-colors hover:bg-muted/50">
-                <CardContent className="space-y-2 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium">
-                        {session.routineName ??
-                          (session.completed_at
-                            ? formatWorkoutDate(session.completed_at)
-                            : "Workout")}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {session.exerciseCount} exercises ·{" "}
-                        {workoutDurationMinutes(
-                          session.started_at,
-                          session.completed_at,
-                          session.paused_at
-                        )}{" "}
-                        min
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold tabular-nums">
-                        {session.volume.toLocaleString()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">lbs</p>
-                    </div>
-                  </div>
-                  {session.exerciseNames.length > 0 && (
-                    <p className="truncate text-xs text-muted-foreground">
-                      {session.exerciseNames.slice(0, 3).join(" · ")}
-                      {session.exerciseNames.length > 3 && " · …"}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+      <CompletedWorkoutsSection
+        sessions={sessions}
+        highlightedId={savedWorkoutId}
+      />
 
       <div className="flex gap-3">
         <Button asChild variant="outline" className="flex-1">

@@ -69,9 +69,8 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
         return;
       }
       setShowEndDialog(false);
-      toast.success("Workout saved to history");
       onComplete?.();
-      router.push(`/workouts/${sessionId}`);
+      router.push(`/workouts?saved=${sessionId}`);
       router.refresh();
     } catch {
       toast.error("Could not save workout");
