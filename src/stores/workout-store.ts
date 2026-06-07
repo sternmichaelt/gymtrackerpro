@@ -34,7 +34,7 @@ interface WorkoutStore {
   ) => Promise<string>;
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
-  endWorkout: () => Promise<void>;
+  endWorkout: () => Promise<string | null>;
   cancelWorkout: () => Promise<void>;
   addExercise: (exercise: Exercise) => Promise<void>;
   addExercises: (
@@ -92,6 +92,16 @@ async function syncSet(entryId: string, set: ActiveWorkoutSet) {
     is_warmup: set.isWarmup,
     completed_at: set.completedAt,
   });
+}
+
+async function syncFullWorkout(workout: ActiveWorkout) {
+  await syncSession(workout);
+  for (const entry of workout.exercises) {
+    await syncExerciseEntry(workout.id, entry);
+    for (const set of entry.sets) {
+      await syncSet(entry.id, set);
+    }
+  }
 }
 
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
@@ -220,18 +230,35 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
   endWorkout: async () => {
     const { workout } = get();
-    if (!workout) return;
+    if (!workout) return null;
+
+    const completedAt = new Date().toISOString();
     const updated = {
       ...workout,
       status: "completed" as const,
-      completedAt: new Date().toISOString(),
+      completedAt,
+      exercises: workout.exercises.map((entry) => ({
+        ...entry,
+        sets: entry.sets.map((set) => ({
+          ...set,
+          completedAt: set.completedAt ?? completedAt,
+        })),
+      })),
     };
-    await persistWorkout(updated);
+
     set({ workout: updated, syncStatus: "saving" });
-    await syncSession(updated);
-    scheduleSync();
+    await persistWorkout(updated);
+    await syncFullWorkout(updated);
+
+    const synced = isNetworkOnline() ? await flushQueue() : false;
+
     await db.activeWorkout.delete(workout.id);
-    set({ workout: null, syncStatus: isNetworkOnline() ? "saved" : "offline" });
+    set({
+      workout: null,
+      syncStatus: synced || !isNetworkOnline() ? "saved" : "error",
+    });
+
+    return workout.id;
   },
 
   cancelWorkout: async () => {

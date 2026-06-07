@@ -37,7 +37,7 @@ export function WorkoutSchedule() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium">
-            {completedCount} of {workout.exercises.length} complete
+            {completedCount} of {exercises.length} complete
           </p>
           <p className="text-sm text-muted-foreground">{progress}%</p>
         </div>
@@ -78,7 +78,7 @@ export function WorkoutSchedule() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {exercises.map((exercise, index) => {
             const set = exercise.sets[0];
             if (!set) return null;
@@ -88,101 +88,89 @@ export function WorkoutSchedule() {
               exercise.previousWeight != null || exercise.previousReps != null;
 
             return (
-              <Card
+              <div
                 key={exercise.id}
                 className={cn(
-                  "transition-colors",
+                  "rounded-lg border p-3 transition-colors",
                   isComplete && "border-primary/40 bg-primary/5"
                 )}
               >
-                <CardContent className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-base font-semibold">
-                        {index + 1}. {exercise.exerciseName}
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold">
+                      {index + 1}. {exercise.exerciseName}
+                    </p>
+                    {isComplete ? (
+                      <p className="text-xs text-primary">
+                        {set.reps} reps · {set.weight} lbs
                       </p>
-                      {isComplete ? (
-                        <p className="mt-1 text-sm font-medium text-primary">
-                          {set.reps} reps · {set.weight} lbs
-                        </p>
-                      ) : hasPrevious ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Last time: {exercise.previousReps ?? "—"} reps ·{" "}
-                          {exercise.previousWeight ?? "—"} lbs
-                        </p>
-                      ) : null}
-                    </div>
-                    {isComplete && (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                        <Check className="h-4 w-4" />
-                      </span>
-                    )}
+                    ) : hasPrevious ? (
+                      <p className="text-xs text-muted-foreground">
+                        Last: {exercise.previousReps ?? "—"} × {exercise.previousWeight ?? "—"} lbs
+                      </p>
+                    ) : null}
                   </div>
 
                   {!isComplete && (
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Reps
-                        </label>
-                        <Input
-                          className="h-12 text-lg"
-                          type="number"
-                          inputMode="numeric"
-                          placeholder={exercise.previousReps?.toString() ?? "0"}
-                          value={set.reps != null ? String(set.reps) : ""}
-                          onChange={(event) =>
-                            updateSet(exercise.id, set.id, {
-                              reps: parseNumber(event.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                          Weight (lbs)
-                        </label>
-                        <Input
-                          className="h-12 text-lg"
-                          type="number"
-                          inputMode="decimal"
-                          placeholder={exercise.previousWeight?.toString() ?? "0"}
-                          value={set.weight != null ? String(set.weight) : ""}
-                          onChange={(event) =>
-                            updateSet(exercise.id, set.id, {
-                              weight: parseNumber(event.target.value),
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
+                    <>
+                      <Input
+                        className="h-9 w-14 px-2 text-center text-sm"
+                        type="number"
+                        inputMode="numeric"
+                        placeholder={exercise.previousReps?.toString() ?? "0"}
+                        aria-label="Reps"
+                        value={set.reps != null ? String(set.reps) : ""}
+                        onChange={(event) =>
+                          updateSet(exercise.id, set.id, {
+                            reps: parseNumber(event.target.value),
+                          })
+                        }
+                      />
+                      <Input
+                        className="h-9 w-16 px-2 text-center text-sm"
+                        type="number"
+                        inputMode="decimal"
+                        placeholder={exercise.previousWeight?.toString() ?? "0"}
+                        aria-label="Weight in lbs"
+                        value={set.weight != null ? String(set.weight) : ""}
+                        onChange={(event) =>
+                          updateSet(exercise.id, set.id, {
+                            weight: parseNumber(event.target.value),
+                          })
+                        }
+                      />
+                      <Button
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        disabled={set.weight == null || set.reps == null}
+                        onClick={() => completeSet(exercise.id, set.id)}
+                        aria-label="Complete exercise"
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
 
-                  {isComplete ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        updateSet(exercise.id, set.id, { completedAt: null })
-                      }
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Edit
-                    </Button>
-                  ) : (
-                    <Button
-                      size="lg"
-                      className="h-12 w-full"
-                      disabled={set.weight == null || set.reps == null}
-                      onClick={() => completeSet(exercise.id, set.id)}
-                    >
-                      <Check className="mr-2 h-4 w-4" />
-                      Complete Exercise
-                    </Button>
+                  {isComplete && (
+                    <>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                        <Check className="h-4 w-4" />
+                      </span>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() =>
+                          updateSet(exercise.id, set.id, { completedAt: null })
+                        }
+                        aria-label="Edit exercise"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>

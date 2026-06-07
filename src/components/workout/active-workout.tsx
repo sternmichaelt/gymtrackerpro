@@ -32,6 +32,7 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
   const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -59,10 +60,23 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
     workout.exercises.length > 0 && completedCount === workout.exercises.length;
 
   const handleEnd = async () => {
-    await endWorkout();
-    toast.success("Workout saved!");
-    onComplete?.();
-    router.refresh();
+    setSaving(true);
+    try {
+      const sessionId = await endWorkout();
+      if (!sessionId) {
+        toast.error("Could not save workout");
+        return;
+      }
+      setShowEndDialog(false);
+      toast.success("Workout saved to history");
+      onComplete?.();
+      router.push(`/workouts/${sessionId}`);
+      router.refresh();
+    } catch {
+      toast.error("Could not save workout");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCancel = async () => {
@@ -138,7 +152,9 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
             <Button variant="outline" onClick={() => setShowEndDialog(false)}>
               Keep Going
             </Button>
-            <Button onClick={handleEnd}>Save Workout</Button>
+            <Button onClick={handleEnd} disabled={saving}>
+              {saving ? "Saving..." : "Save Workout"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

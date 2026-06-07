@@ -12,6 +12,7 @@ interface WorkoutDetailProps {
     paused_at: string | null;
     notes: string | null;
     status: string;
+    workout_templates?: { name: string } | null;
     workout_session_exercises?: {
       id: string;
       sort_order: number;
@@ -37,7 +38,9 @@ export function WorkoutDetail({ session }: WorkoutDetailProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Workout</h1>
+        <h1 className="text-2xl font-bold">
+          {session.workout_templates?.name ?? "Workout"}
+        </h1>
         <p className="text-muted-foreground">
           {session.completed_at
             ? new Date(session.completed_at).toLocaleDateString("en-US", {

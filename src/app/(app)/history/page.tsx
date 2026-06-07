@@ -20,29 +20,48 @@ export default async function HistoryPage() {
         <p className="text-muted-foreground">All completed workouts</p>
       </div>
 
-      <div className="space-y-2">
-        {sessions.map((session) => (
-          <Link key={session.id} href={`/workouts/${session.id}`}>
-            <Card className="transition-colors hover:bg-muted/50">
-              <CardContent className="flex items-center justify-between p-3">
-                <div>
-                  <p className="font-medium">
-                    {session.completed_at
-                      ? new Date(session.completed_at).toLocaleDateString()
-                      : "Workout"}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {session.exerciseCount} exercises
-                  </p>
-                </div>
-                <p className="font-semibold tabular-nums">
-                  {session.volume.toLocaleString()} lbs
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      {sessions.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No completed workouts yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {sessions.map((session) => (
+            <Link key={session.id} href={`/workouts/${session.id}`}>
+              <Card className="transition-colors hover:bg-muted/50">
+                <CardContent className="space-y-1 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium">
+                        {session.routineName ??
+                          (session.completed_at
+                            ? new Date(session.completed_at).toLocaleDateString()
+                            : "Workout")}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {session.completed_at
+                          ? new Date(session.completed_at).toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : ""}{" "}
+                        · {session.exerciseCount} exercises
+                      </p>
+                    </div>
+                    <p className="font-semibold tabular-nums">
+                      {session.volume.toLocaleString()} lbs
+                    </p>
+                  </div>
+                  {session.exerciseNames.length > 0 && (
+                    <p className="truncate text-xs text-muted-foreground">
+                      {session.exerciseNames.slice(0, 4).join(" · ")}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

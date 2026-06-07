@@ -59,16 +59,29 @@ export function scheduleSync(delay = 300) {
   }, delay);
 }
 
+const TABLE_SYNC_ORDER = [
+  "workout_sessions",
+  "workout_session_exercises",
+  "sets",
+];
+
 export async function flushQueue(): Promise<boolean> {
   if (!isOnline) return false;
 
   const mutations = await db.pendingMutations.orderBy("createdAt").toArray();
   if (mutations.length === 0) return true;
 
+  const sortedMutations = [...mutations].sort((a, b) => {
+    const orderA = TABLE_SYNC_ORDER.indexOf(a.table);
+    const orderB = TABLE_SYNC_ORDER.indexOf(b.table);
+    if (orderA !== orderB) return orderA - orderB;
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+
   const supabase = createClient();
   let hasError = false;
 
-  for (const mutation of mutations) {
+  for (const mutation of sortedMutations) {
     try {
       if (mutation.operation === "upsert") {
         const { error } = await supabase
