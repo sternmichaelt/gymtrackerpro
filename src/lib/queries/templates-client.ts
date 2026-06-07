@@ -16,7 +16,7 @@ const ROUTINE_SELECT = `
   name,
   workout_template_exercises (
     sort_order,
-    exercises (id, name, muscle_group, equipment_type, is_system, is_archived, user_id, created_at)
+    exercises (id, name, muscle_group, equipment_type)
   )
 `;
 
@@ -63,7 +63,19 @@ export async function fetchSavedRoutines(userId: string): Promise<SavedRoutine[]
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
-    return normalizeRoutines(legacyQuery.data);
+    if (!legacyQuery.error) {
+      return normalizeRoutines(legacyQuery.data);
+    }
+  }
+
+  const fallbackQuery = await supabase
+    .from("workout_templates")
+    .select(ROUTINE_SELECT)
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (!fallbackQuery.error) {
+    return normalizeRoutines(fallbackQuery.data);
   }
 
   return [];

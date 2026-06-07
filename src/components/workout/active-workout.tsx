@@ -131,6 +131,7 @@ export function ActiveWorkout({
           value={workout.templateId}
           onSelect={() => {}}
           disabled
+          activeRoutineName={workout.templateName}
         />
       </div>
 

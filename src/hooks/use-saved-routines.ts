@@ -14,7 +14,9 @@ export function useSavedRoutines(userId: string, initial: SavedRoutine[] = []) {
     setLoading(true);
     try {
       const data = await fetchSavedRoutines(userId);
-      setRoutines(data);
+      if (data.length > 0) {
+        setRoutines(data);
+      }
     } finally {
       setLoading(false);
     }

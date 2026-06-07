@@ -19,6 +19,7 @@ interface RoutineSelectorProps {
   onSelect: (templateId: string | null) => void;
   disabled?: boolean;
   loading?: boolean;
+  activeRoutineName?: string | null;
 }
 
 function getExerciseCount(routine: SavedRoutine) {
@@ -33,20 +34,29 @@ export function RoutineSelector({
   onSelect,
   disabled = false,
   loading = false,
+  activeRoutineName = null,
 }: RoutineSelectorProps) {
   const selectValue =
     value ?? (disabled && !value ? EMPTY_ROUTINE_VALUE : undefined);
+  const showEmptyState = routines.length === 0 && !loading && !activeRoutineName;
 
   return (
     <div className="space-y-2">
       <Label htmlFor="routine-select">Workout Routine</Label>
-      {routines.length === 0 && !loading ? (
+      {showEmptyState ? (
         <p className="text-sm text-muted-foreground">
           No routines yet.{" "}
           <Link href="/templates/new" className="text-primary underline">
             Create one on the Routines page
           </Link>
         </p>
+      ) : routines.length === 0 && activeRoutineName ? (
+        <div
+          id="routine-select"
+          className="flex h-11 w-full items-center rounded-lg border border-input bg-muted/30 px-3 text-sm"
+        >
+          {activeRoutineName}
+        </div>
       ) : (
         <Select
           value={selectValue}
