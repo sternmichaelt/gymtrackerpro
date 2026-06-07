@@ -7,7 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { createClient } from "@/lib/supabase/client";
+import {
+  signInWithGoogle,
+  signInWithPassword,
+  signUp,
+} from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +32,6 @@ interface AuthFormProps {
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
 
   const {
     register,
@@ -46,23 +49,19 @@ export function AuthForm({ mode }: AuthFormProps) {
         setLoading(false);
         return;
       }
+
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: data.email,
-          password: data.password,
-        });
-        if (error) throw error;
+        const result = await signInWithPassword(data.email, data.password);
+        if (result?.error) throw new Error(result.error);
         router.push("/overview");
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({
-          email: data.email,
-          password: data.password,
-          options: {
-            data: { full_name: data.fullName },
-          },
-        });
-        if (error) throw error;
+        const result = await signUp(
+          data.email,
+          data.password,
+          data.fullName ?? ""
+        );
+        if (result?.error) throw new Error(result.error);
         toast.success("Check your email to confirm your account");
         router.push("/login");
       }
@@ -73,16 +72,20 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const handleGoogleSignIn = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
-    if (error) {
-      toast.error(error.message);
+    try {
+      const result = await signInWithGoogle();
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      if (result?.url) {
+        window.location.href = result.url;
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
       setLoading(false);
     }
   };
@@ -138,7 +141,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       <Button
         variant="outline"
         className="w-full"
-        onClick={signInWithGoogle}
+        onClick={handleGoogleSignIn}
         disabled={loading}
       >
         Continue with Google
