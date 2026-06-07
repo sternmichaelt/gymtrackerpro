@@ -6,7 +6,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import type { SavedRoutine } from "@/lib/queries/templates-client";
@@ -17,9 +16,9 @@ interface RoutineSelectorProps {
   routines: SavedRoutine[];
   value: string | null;
   onSelect: (templateId: string | null) => void;
-  disabled?: boolean;
+  readOnly?: boolean;
   loading?: boolean;
-  activeRoutineName?: string | null;
+  fallbackLabel?: string | null;
 }
 
 function getExerciseCount(routine: SavedRoutine) {
@@ -33,41 +32,21 @@ function getRoutineLabel(routine: SavedRoutine) {
   return `${routine.name}${count === 0 ? " (no exercises)" : ` (${count} exercises)`}`;
 }
 
-function resolveDisplayLabel(
-  routines: SavedRoutine[],
-  value: string | null,
-  activeRoutineName?: string | null
-) {
-  if (activeRoutineName) return activeRoutineName;
-  if (!value || value === EMPTY_ROUTINE_VALUE) return "Custom workout (no routine)";
-  const routine = routines.find((item) => item.id === value);
-  return routine ? getRoutineLabel(routine) : null;
-}
-
 export function RoutineSelector({
   routines,
   value,
   onSelect,
-  disabled = false,
+  readOnly = false,
   loading = false,
-  activeRoutineName = null,
+  fallbackLabel = null,
 }: RoutineSelectorProps) {
-  const displayLabel = resolveDisplayLabel(routines, value, activeRoutineName);
+  const matchedRoutine = value
+    ? routines.find((routine) => routine.id === value)
+    : null;
+  const displayLabel =
+    matchedRoutine != null ? getRoutineLabel(matchedRoutine) : fallbackLabel;
+  const selectValue = matchedRoutine?.id;
   const showEmptyState = routines.length === 0 && !loading && !displayLabel;
-
-  if (disabled || activeRoutineName) {
-    return (
-      <div className="space-y-2">
-        <Label htmlFor="routine-select">Workout Routine</Label>
-        <div
-          id="routine-select"
-          className="flex h-11 w-full items-center rounded-lg border border-input bg-muted/30 px-3 text-sm font-medium"
-        >
-          {displayLabel ?? "Custom workout"}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-2">
@@ -81,20 +60,17 @@ export function RoutineSelector({
         </p>
       ) : (
         <Select
-          value={value ?? undefined}
+          value={selectValue}
           onValueChange={(next) =>
             onSelect(next === EMPTY_ROUTINE_VALUE ? null : next)
           }
-          disabled={loading}
+          disabled={readOnly || loading}
         >
           <SelectTrigger id="routine-select" className="h-11 w-full">
-            {displayLabel ? (
-              <span className="flex flex-1 truncate text-left">{displayLabel}</span>
-            ) : (
-              <SelectValue
-                placeholder={loading ? "Loading routines..." : "Choose a routine..."}
-              />
-            )}
+            <span className="flex flex-1 truncate text-left">
+              {displayLabel ??
+                (loading ? "Loading routines..." : "Choose a routine...")}
+            </span>
           </SelectTrigger>
           <SelectContent>
             {routines.map((routine) => (

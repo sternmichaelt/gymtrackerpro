@@ -24,16 +24,28 @@ import {
   formatElapsedTime,
 } from "@/lib/workout-utils";
 import type { SavedRoutine } from "@/lib/queries/templates-client";
+import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
 interface ActiveWorkoutProps {
   userId: string;
   initialRoutines?: SavedRoutine[];
+  routineDefaults?: Record<string, Record<string, ExerciseSetDefaults>>;
   onComplete?: () => void;
+}
+
+function getTemplateExercises(template?: SavedRoutine) {
+  return (
+    template?.workout_template_exercises
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map((entry) => entry.exercises)
+      .filter((exercise): exercise is Exercise => exercise !== null) ?? []
+  );
 }
 
 export function ActiveWorkout({
   userId,
   initialRoutines = [],
+  routineDefaults = {},
   onComplete,
 }: ActiveWorkoutProps) {
   const router = useRouter();
@@ -42,11 +54,13 @@ export function ActiveWorkout({
   const resumeWorkout = useWorkoutStore((s) => s.resumeWorkout);
   const endWorkout = useWorkoutStore((s) => s.endWorkout);
   const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
+  const loadRoutineIntoWorkout = useWorkoutStore((s) => s.loadRoutineIntoWorkout);
   const { routines } = useSavedRoutines(userId, initialRoutines);
   const savedRoutines = routines.length > 0 ? routines : initialRoutines;
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loadingRoutine, setLoadingRoutine] = useState(false);
   const [elapsed, setElapsed] = useState("0:00");
 
   useEffect(() => {
@@ -70,6 +84,45 @@ export function ActiveWorkout({
   const completedCount = countCompletedExercises(workout.exercises);
   const allComplete =
     workout.exercises.length > 0 && completedCount === workout.exercises.length;
+  const canChangeRoutine = workout.exercises.length === 0;
+
+  const handleRoutineSelect = async (templateId: string | null) => {
+    if (!canChangeRoutine) return;
+
+    if (!templateId) {
+      setLoadingRoutine(true);
+      try {
+        await loadRoutineIntoWorkout(null, null, []);
+      } catch {
+        toast.error("Could not update workout");
+      } finally {
+        setLoadingRoutine(false);
+      }
+      return;
+    }
+
+    const template = savedRoutines.find((item) => item.id === templateId);
+    const exercises = getTemplateExercises(template);
+
+    if (!template || exercises.length === 0) {
+      toast.error("Add exercises to this routine first");
+      return;
+    }
+
+    setLoadingRoutine(true);
+    try {
+      await loadRoutineIntoWorkout(
+        template.id,
+        template.name,
+        exercises,
+        routineDefaults[template.id] ?? {}
+      );
+    } catch {
+      toast.error("Could not load routine");
+    } finally {
+      setLoadingRoutine(false);
+    }
+  };
 
   const handleEnd = async () => {
     setSaving(true);
@@ -130,9 +183,10 @@ export function ActiveWorkout({
         <RoutineSelector
           routines={savedRoutines}
           value={workout.templateId}
-          onSelect={() => {}}
-          disabled
-          activeRoutineName={workout.templateName}
+          onSelect={handleRoutineSelect}
+          readOnly={!canChangeRoutine}
+          loading={loadingRoutine}
+          fallbackLabel={workout.templateName}
         />
       </div>
 

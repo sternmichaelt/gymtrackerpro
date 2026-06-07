@@ -32,6 +32,12 @@ interface WorkoutStore {
     defaults?: Record<string, ExerciseSetDefaults>,
     templateName?: string | null
   ) => Promise<string>;
+  loadRoutineIntoWorkout: (
+    templateId: string | null,
+    templateName: string | null,
+    exercises: Exercise[],
+    defaults?: Record<string, ExerciseSetDefaults>
+  ) => Promise<void>;
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
   endWorkout: () => Promise<string | null>;
@@ -104,6 +110,36 @@ async function syncFullWorkout(workout: ActiveWorkout) {
   }
 }
 
+function buildExerciseEntries(
+  exercises: Exercise[],
+  defaults: Record<string, ExerciseSetDefaults> = {}
+) {
+  return exercises.map((exercise, index) => {
+    const previous = defaults[exercise.id];
+    return {
+      id: uuidv4(),
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      muscleGroup: exercise.muscle_group,
+      equipmentType: exercise.equipment_type,
+      sortOrder: index,
+      previousWeight: previous?.weight ?? null,
+      previousReps: previous?.reps ?? null,
+      sets: [
+        {
+          id: uuidv4(),
+          setNumber: 1,
+          weight: previous?.weight ?? null,
+          reps: previous?.reps ?? null,
+          notes: null,
+          isWarmup: false,
+          completedAt: null,
+        },
+      ],
+    };
+  });
+}
+
 export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   workout: null,
   syncStatus: "saved",
@@ -160,30 +196,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       pausedAt: null,
       completedAt: null,
       notes: null,
-      exercises: exercises.map((ex, i) => {
-        const previous = defaults[ex.id];
-        return {
-          id: uuidv4(),
-          exerciseId: ex.id,
-          exerciseName: ex.name,
-          muscleGroup: ex.muscle_group,
-          equipmentType: ex.equipment_type,
-          sortOrder: i,
-          previousWeight: previous?.weight ?? null,
-          previousReps: previous?.reps ?? null,
-          sets: [
-            {
-              id: uuidv4(),
-              setNumber: 1,
-              weight: previous?.weight ?? null,
-              reps: previous?.reps ?? null,
-              notes: null,
-              isWarmup: false,
-              completedAt: null,
-            },
-          ],
-        };
-      }),
+      exercises: buildExerciseEntries(exercises, defaults),
     };
 
     await persistWorkout(workout);
@@ -196,6 +209,33 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     scheduleSync();
     set({ syncStatus: isNetworkOnline() ? "saved" : "offline" });
     return sessionId;
+  },
+
+  loadRoutineIntoWorkout: async (
+    templateId,
+    templateName,
+    exercises,
+    defaults = {}
+  ) => {
+    const { workout } = get();
+    if (!workout) return;
+
+    const updated = {
+      ...workout,
+      templateId,
+      templateName,
+      exercises: buildExerciseEntries(exercises, defaults),
+    };
+
+    await persistWorkout(updated);
+    set({ workout: updated, syncStatus: "saving" });
+    await syncSession(updated);
+    for (const entry of updated.exercises) {
+      await syncExerciseEntry(workout.id, entry);
+      for (const set of entry.sets) await syncSet(entry.id, set);
+    }
+    scheduleSync();
+    set({ syncStatus: isNetworkOnline() ? "saved" : "offline" });
   },
 
   pauseWorkout: async () => {

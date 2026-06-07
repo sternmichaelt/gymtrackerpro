@@ -140,6 +140,7 @@ export function WorkoutsHub({
       <ActiveWorkout
         userId={userId}
         initialRoutines={savedRoutines}
+        routineDefaults={routineDefaults}
         onComplete={handleComplete}
       />
     );
