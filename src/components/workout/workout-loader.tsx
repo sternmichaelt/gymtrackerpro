@@ -10,6 +10,7 @@ interface WorkoutLoaderProps {
     id: string;
     user_id: string;
     template_id: string | null;
+    workout_templates?: { name: string } | null;
     status: "in_progress" | "paused" | "completed" | "cancelled";
     started_at: string;
     paused_at: string | null;
@@ -32,7 +33,7 @@ interface WorkoutLoaderProps {
         reps: number | null;
         notes: string | null;
         is_warmup: boolean;
-        completed_at: string;
+        completed_at: string | null;
       }[];
     }[];
   };
@@ -52,6 +53,7 @@ export function WorkoutLoader({
       id: session.id,
       userId: session.user_id,
       templateId: session.template_id,
+      templateName: session.workout_templates?.name ?? null,
       status: session.status,
       startedAt: session.started_at,
       pausedAt: session.paused_at,
@@ -79,7 +81,7 @@ export function WorkoutLoader({
               reps: s.reps,
               notes: s.notes,
               isWarmup: s.is_warmup,
-              completedAt: s.completed_at,
+              completedAt: s.completed_at ?? null,
             })),
         };
         }),

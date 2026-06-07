@@ -1,10 +1,10 @@
 export const EXAMPLE_ROUTINE_NAME = "Example Routine";
 
 export const EXAMPLE_ROUTINE_EXERCISES = [
-  "Rowing Machine",
   "Treadmill Run",
-  "Back Squat",
+  "Assault Bike",
   "Barbell Bench Press",
-  "Barbell Row",
-  "Overhead Press",
+  "Back Squat",
+  "Seated Cable Row",
+  "Lat Pulldown",
 ] as const;

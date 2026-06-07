@@ -1,4 +1,4 @@
--- Create a full-body example routine for new users on signup.
+-- Backfill empty Example Routine rows and use the updated exercise list.
 
 create or replace function public.create_example_routine(p_user_id uuid)
 returns void
@@ -20,17 +20,24 @@ declare
   v_exercise_id uuid;
   v_sort_order integer := 0;
 begin
-  if exists (
+  select id into v_template_id
+  from public.workout_templates
+  where user_id = p_user_id and name = 'Example Routine'
+  limit 1;
+
+  if v_template_id is not null and exists (
     select 1
-    from public.workout_templates
-    where user_id = p_user_id and name = 'Example Routine'
+    from public.workout_template_exercises
+    where template_id = v_template_id
   ) then
     return;
   end if;
 
-  insert into public.workout_templates (user_id, name)
-  values (p_user_id, 'Example Routine')
-  returning id into v_template_id;
+  if v_template_id is null then
+    insert into public.workout_templates (user_id, name)
+    values (p_user_id, 'Example Routine')
+    returning id into v_template_id;
+  end if;
 
   foreach v_name in array v_exercise_names loop
     select id into v_exercise_id
@@ -47,25 +54,5 @@ begin
       v_sort_order := v_sort_order + 1;
     end if;
   end loop;
-end;
-$$;
-
-create or replace function public.handle_new_user()
-returns trigger
-language plpgsql
-security definer
-set search_path = ''
-as $$
-begin
-  insert into public.profiles (id, email, full_name)
-  values (
-    new.id,
-    new.email,
-    coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name')
-  );
-
-  perform public.create_example_routine(new.id);
-
-  return new;
 end;
 $$;

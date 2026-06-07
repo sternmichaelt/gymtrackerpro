@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getCompletedSessions } from "@/lib/queries/workouts";
+import { getActiveSession, getCompletedSessions, getRoutineDefaultsForTemplates } from "@/lib/queries/workouts";
+import { ensureExampleRoutine, getTemplates } from "@/lib/queries/templates";
 import { workoutDurationMinutes } from "@/lib/analytics";
+import { StartWorkoutForm } from "@/components/workout/start-workout-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function WorkoutsPage() {
   const supabase = await createClient();
@@ -14,34 +16,47 @@ export default async function WorkoutsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const sessions = await getCompletedSessions(user.id);
+  await ensureExampleRoutine(user.id);
+  const [sessions, activeSession, templates] = await Promise.all([
+    getCompletedSessions(user.id),
+    getActiveSession(user.id),
+    getTemplates(user.id),
+  ]);
+  const routineDefaults = await getRoutineDefaultsForTemplates(
+    user.id,
+    templates.map((template) => template.id)
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Workouts</h1>
-          <p className="text-muted-foreground">Your training history</p>
-        </div>
-        <Button asChild size="sm">
-          <Link href="/workouts/new">
-            <Plus className="mr-1 h-4 w-4" />
-            New
-          </Link>
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold">Workouts</h1>
+        <p className="text-muted-foreground">Select a routine and track your sets</p>
       </div>
 
-      {sessions.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No workouts yet</p>
-            <Button asChild className="mt-4">
-              <Link href="/workouts/new">Start your first workout</Link>
+      {activeSession ? (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardContent className="flex items-center justify-between p-4">
+            <div>
+              <p className="font-semibold">Workout in progress</p>
+              <Badge>{activeSession.status}</Badge>
+            </div>
+            <Button asChild>
+              <Link href={`/workouts/${activeSession.id}`}>Continue</Link>
             </Button>
           </CardContent>
         </Card>
       ) : (
+        <StartWorkoutForm
+          templates={templates}
+          userId={user.id}
+          routineDefaults={routineDefaults}
+        />
+      )}
+
+      {sessions.length > 0 && (
         <div className="space-y-3">
+          <h2 className="text-sm font-medium text-muted-foreground">Recent workouts</h2>
           {sessions.map((session) => (
             <Link key={session.id} href={`/workouts/${session.id}`}>
               <Card className="transition-colors hover:bg-muted/50">
@@ -78,6 +93,15 @@ export default async function WorkoutsPage() {
           ))}
         </div>
       )}
+
+      <div className="flex gap-3">
+        <Button asChild variant="outline" className="flex-1">
+          <Link href="/exercises">Browse Exercises</Link>
+        </Button>
+        <Button asChild variant="outline" className="flex-1">
+          <Link href="/history">View History</Link>
+        </Button>
+      </div>
     </div>
   );
 }

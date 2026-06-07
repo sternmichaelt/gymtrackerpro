@@ -14,6 +14,10 @@ function parseNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function isExerciseComplete(set: { weight: number | null; reps: number | null; completedAt: string | null }) {
+  return set.completedAt != null && set.weight != null && set.reps != null;
+}
+
 export function WorkoutSchedule() {
   const workout = useWorkoutStore((s) => s.workout);
   const addExercise = useWorkoutStore((s) => s.addExercise);
@@ -24,16 +28,18 @@ export function WorkoutSchedule() {
 
   const completedCount = workout.exercises.filter((exercise) => {
     const set = exercise.sets[0];
-    return set?.weight != null && set?.reps != null;
+    return set && isExerciseComplete(set);
   }).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Today&apos;s Schedule</h2>
+          <h2 className="text-lg font-semibold">
+            {workout.templateName ?? "Today's Workout"}
+          </h2>
           <p className="text-sm text-muted-foreground">
-            {completedCount} of {workout.exercises.length} exercises logged
+            {completedCount} of {workout.exercises.length} exercises complete
           </p>
         </div>
         <ExercisePicker
@@ -50,7 +56,7 @@ export function WorkoutSchedule() {
       {workout.exercises.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Add exercises to build your workout schedule.
+            Add exercises to build your workout.
           </CardContent>
         </Card>
       ) : (
@@ -59,7 +65,7 @@ export function WorkoutSchedule() {
             const set = exercise.sets[0];
             if (!set) return null;
 
-            const isComplete = set.weight != null && set.reps != null;
+            const isComplete = isExerciseComplete(set);
             const hasPrevious =
               exercise.previousWeight != null || exercise.previousReps != null;
 
@@ -77,9 +83,11 @@ export function WorkoutSchedule() {
                       <p className="font-medium">
                         {index + 1}. {exercise.exerciseName}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {exercise.muscleGroup.replace("_", " ")}
-                      </p>
+                      {isComplete && (
+                        <p className="text-sm text-muted-foreground">
+                          {set.reps} reps · {set.weight} lbs
+                        </p>
+                      )}
                     </div>
                     {isComplete && (
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
@@ -88,59 +96,60 @@ export function WorkoutSchedule() {
                     )}
                   </div>
 
-                  {hasPrevious && (
+                  {hasPrevious && !isComplete && (
                     <p className="text-xs text-muted-foreground">
-                      Last time:{" "}
-                      <span className="font-medium text-foreground">
-                        {exercise.previousWeight ?? "—"} lbs ×{" "}
-                        {exercise.previousReps ?? "—"} reps
-                      </span>
+                      Last time: {exercise.previousReps ?? "—"} reps ·{" "}
+                      {exercise.previousWeight ?? "—"} lbs
                     </p>
                   )}
 
-                  <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">
-                        Weight (lbs)
-                      </label>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        placeholder={exercise.previousWeight?.toString() ?? "0"}
-                        value={set.weight != null ? String(set.weight) : ""}
-                        onChange={(event) =>
-                          updateSet(exercise.id, set.id, {
-                            weight: parseNumber(event.target.value),
-                          })
-                        }
-                      />
+                  {!isComplete && (
+                    <div className="grid grid-cols-[1fr_1fr] gap-3">
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Reps
+                        </label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder={exercise.previousReps?.toString() ?? "0"}
+                          value={set.reps != null ? String(set.reps) : ""}
+                          onChange={(event) =>
+                            updateSet(exercise.id, set.id, {
+                              reps: parseNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                          Weight (lbs)
+                        </label>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder={exercise.previousWeight?.toString() ?? "0"}
+                          value={set.weight != null ? String(set.weight) : ""}
+                          onChange={(event) =>
+                            updateSet(exercise.id, set.id, {
+                              weight: parseNumber(event.target.value),
+                            })
+                          }
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-medium text-muted-foreground">
-                        Reps
-                      </label>
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        placeholder={exercise.previousReps?.toString() ?? "0"}
-                        value={set.reps != null ? String(set.reps) : ""}
-                        onChange={(event) =>
-                          updateSet(exercise.id, set.id, {
-                            reps: parseNumber(event.target.value),
-                          })
-                        }
-                      />
-                    </div>
-                    <Button
-                      size="sm"
-                      className="h-8"
-                      variant={isComplete ? "secondary" : "default"}
-                      disabled={set.weight == null || set.reps == null}
-                      onClick={() => completeSet(exercise.id, set.id)}
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  )}
+
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    variant={isComplete ? "secondary" : "default"}
+                    disabled={isComplete || set.weight == null || set.reps == null}
+                    onClick={() => completeSet(exercise.id, set.id)}
+                  >
+                    <Check className="mr-2 h-4 w-4" />
+                    {isComplete ? "Completed" : "Complete Exercise"}
+                  </Button>
                 </CardContent>
               </Card>
             );

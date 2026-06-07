@@ -29,7 +29,8 @@ interface WorkoutStore {
     userId: string,
     exercises?: Exercise[],
     templateId?: string | null,
-    defaults?: Record<string, ExerciseSetDefaults>
+    defaults?: Record<string, ExerciseSetDefaults>,
+    templateName?: string | null
   ) => Promise<string>;
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
@@ -118,12 +119,19 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     if (active) set({ workout: active });
   },
 
-  startWorkout: async (userId, exercises = [], templateId = null, defaults = {}) => {
+  startWorkout: async (
+    userId,
+    exercises = [],
+    templateId = null,
+    defaults = {},
+    templateName = null
+  ) => {
     const sessionId = uuidv4();
     const workout: ActiveWorkout = {
       id: sessionId,
       userId,
       templateId,
+      templateName,
       status: "in_progress",
       startedAt: new Date().toISOString(),
       pausedAt: null,
@@ -148,7 +156,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
               reps: previous?.reps ?? null,
               notes: null,
               isWarmup: false,
-              completedAt: new Date().toISOString(),
+              completedAt: null,
             },
           ],
         };
@@ -231,7 +239,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
           reps: null,
           notes: null,
           isWarmup: false,
-          completedAt: new Date().toISOString(),
+          completedAt: null,
         },
       ],
     };
@@ -276,7 +284,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       reps: lastSet?.reps ?? null,
       notes: null,
       isWarmup: false,
-      completedAt: new Date().toISOString(),
+      completedAt: null,
     };
     const updated = {
       ...workout,
@@ -340,6 +348,12 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   completeSet: async (exerciseEntryId, setId) => {
+    const { workout } = get();
+    if (!workout) return;
+    const entry = workout.exercises.find((e) => e.id === exerciseEntryId);
+    const set = entry?.sets.find((s) => s.id === setId);
+    if (!set || set.weight == null || set.reps == null) return;
+
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(50);
     }

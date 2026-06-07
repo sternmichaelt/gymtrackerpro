@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { LogOut, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useColorTheme } from "@/components/color-theme-provider";
 import { createClient } from "@/lib/supabase/client";
+import { COLOR_THEMES } from "@/lib/constants/color-themes";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +22,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [themeReady, setThemeReady] = useState(false);
   const { theme, setTheme } = useTheme();
+  const { colorTheme, setColorTheme, ready: colorThemeReady } = useColorTheme();
 
   useEffect(() => {
     setThemeReady(true);
@@ -107,7 +111,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Appearance</Label>
+            <Label>Mode</Label>
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
@@ -127,6 +131,34 @@ export default function SettingsPage() {
                 <Moon className="mr-2 h-4 w-4" />
                 Dark
               </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Button Color</Label>
+            <p className="text-xs text-muted-foreground">
+              Pick an accent color for buttons and highlights.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {COLOR_THEMES.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={!colorThemeReady}
+                  onClick={() => setColorTheme(item.id)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    colorTheme === item.id
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:bg-muted/50"
+                  )}
+                >
+                  <span
+                    className="h-5 w-5 shrink-0 rounded-full border border-black/10"
+                    style={{ backgroundColor: item.swatch }}
+                  />
+                  <span>{item.label}</span>
+                </button>
+              ))}
             </div>
           </div>
           <p className="text-sm text-muted-foreground">

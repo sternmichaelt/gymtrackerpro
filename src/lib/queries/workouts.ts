@@ -117,6 +117,7 @@ export async function getSessionDetail(sessionId: string) {
     .from("workout_sessions")
     .select(`
       *,
+      workout_templates (name),
       workout_session_exercises (
         id,
         sort_order,

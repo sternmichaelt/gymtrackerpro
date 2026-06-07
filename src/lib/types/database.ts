@@ -112,13 +112,14 @@ export interface ActiveWorkoutSet {
   reps: number | null;
   notes: string | null;
   isWarmup: boolean;
-  completedAt: string;
+  completedAt: string | null;
 }
 
 export interface ActiveWorkout {
   id: string;
   userId: string;
   templateId: string | null;
+  templateName: string | null;
   status: SessionStatus;
   startedAt: string;
   pausedAt: string | null;

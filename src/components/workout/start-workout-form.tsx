@@ -45,7 +45,8 @@ export function StartWorkoutForm({
         userId,
         exercises,
         template?.id ?? null,
-        template ? routineDefaults[template.id] ?? {} : {}
+        template ? routineDefaults[template.id] ?? {} : {},
+        template?.name ?? null
       );
       router.push(`/workouts/${sessionId}`);
     } catch {
@@ -57,18 +58,9 @@ export function StartWorkoutForm({
 
   return (
     <div className="space-y-4">
-      <Button
-        size="lg"
-        className="h-14 w-full"
-        onClick={() => handleStart()}
-        disabled={loading}
-      >
-        Start Empty Workout
-      </Button>
-
       {templates.length > 0 && (
         <>
-          <p className="text-sm font-medium text-muted-foreground">From routine</p>
+          <p className="text-sm font-medium text-muted-foreground">Choose a routine</p>
           <div className="space-y-2">
             {templates.map((template) => (
               <Card
@@ -92,6 +84,16 @@ export function StartWorkoutForm({
           </div>
         </>
       )}
+
+      <Button
+        size="lg"
+        variant="outline"
+        className="h-12 w-full"
+        onClick={() => handleStart()}
+        disabled={loading}
+      >
+        Start Empty Workout
+      </Button>
     </div>
   );
 }
