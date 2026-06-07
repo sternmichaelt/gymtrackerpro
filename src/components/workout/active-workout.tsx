@@ -6,6 +6,7 @@ import { Check, Clock, Pause, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { SyncIndicator } from "@/components/layout/sync-indicator";
+import { RoutineSelector } from "@/components/workout/routine-selector";
 import { WorkoutSchedule } from "@/components/workout/workout-schedule";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,13 +18,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatElapsedTime, isExerciseComplete } from "@/lib/workout-utils";
+import {
+  countCompletedExercises,
+  formatElapsedTime,
+} from "@/lib/workout-utils";
+import type { Exercise } from "@/lib/types/database";
+
+interface RoutineTemplate {
+  id: string;
+  name: string;
+  workout_template_exercises?: {
+    sort_order: number;
+    exercises: Exercise | null;
+  }[];
+}
 
 interface ActiveWorkoutProps {
+  templates?: RoutineTemplate[];
   onComplete?: () => void;
 }
 
-export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
+export function ActiveWorkout({ templates = [], onComplete }: ActiveWorkoutProps) {
   const router = useRouter();
   const workout = useWorkoutStore((s) => s.workout);
   const pauseWorkout = useWorkoutStore((s) => s.pauseWorkout);
@@ -53,10 +68,7 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
     );
   }
 
-  const completedCount = workout.exercises.filter((exercise) => {
-    const set = exercise.sets[0];
-    return set && isExerciseComplete(set);
-  }).length;
+  const completedCount = countCompletedExercises(workout.exercises);
   const allComplete =
     workout.exercises.length > 0 && completedCount === workout.exercises.length;
 
@@ -88,22 +100,29 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold">
-            {workout.templateName ?? "Active Workout"}
-          </h1>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={workout.status === "paused" ? "secondary" : "default"}>
-              {workout.status === "paused" ? "Paused" : "In Progress"}
-            </Badge>
-            <span className="flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              {elapsed}
-            </span>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-bold">Active Workout</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={workout.status === "paused" ? "secondary" : "default"}>
+                {workout.status === "paused" ? "Paused" : "In Progress"}
+              </Badge>
+              <span className="flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                {elapsed}
+              </span>
+            </div>
           </div>
+          <SyncIndicator />
         </div>
-        <SyncIndicator />
+
+        <RoutineSelector
+          templates={templates}
+          value={workout.templateId}
+          onSelect={() => {}}
+          disabled
+        />
       </div>
 
       <div className="flex gap-2">
@@ -135,7 +154,7 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
         </Button>
         {!allComplete && workout.exercises.length > 0 && (
           <p className="text-center text-xs text-muted-foreground">
-            Finish all {workout.exercises.length} exercises to save ({completedCount} done)
+            Check off all {workout.exercises.length} exercises to save ({completedCount} done)
           </p>
         )}
       </div>

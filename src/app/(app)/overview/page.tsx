@@ -41,7 +41,7 @@ export default async function OverviewPage() {
         </Card>
       ) : (
         <Button asChild size="lg" className="h-14 w-full text-base">
-          <Link href="/workouts/new">
+          <Link href="/workouts">
             <Plus className="mr-2 h-5 w-5" />
             Start Workout
           </Link>

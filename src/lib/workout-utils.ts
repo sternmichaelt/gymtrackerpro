@@ -6,6 +6,24 @@ export function isExerciseComplete(set: {
   return set.completedAt != null && set.weight != null && set.reps != null;
 }
 
+export function countCompletedExercises(
+  exercises: { sets: { weight: number | null; reps: number | null; completedAt: string | null }[] }[]
+) {
+  return exercises.filter((exercise) => {
+    const set = exercise.sets[0];
+    return set && isExerciseComplete(set);
+  }).length;
+}
+
+export function getWorkoutProgress(
+  exercises: { sets: { weight: number | null; reps: number | null; completedAt: string | null }[] }[]
+) {
+  const completed = countCompletedExercises(exercises);
+  const total = exercises.length;
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  return { completed, total, percent };
+}
+
 export function formatWorkoutDate(date: string) {
   return new Date(date).toLocaleDateString("en-US", {
     weekday: "short",

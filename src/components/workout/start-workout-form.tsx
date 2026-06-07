@@ -4,8 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { RoutineSelector } from "@/components/workout/routine-selector";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
 interface Template {
@@ -23,6 +22,15 @@ interface StartWorkoutFormProps {
   routineDefaults: Record<string, Record<string, ExerciseSetDefaults>>;
 }
 
+function getTemplateExercises(template?: Template) {
+  return (
+    template?.workout_template_exercises
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map((entry) => entry.exercises)
+      .filter((exercise): exercise is Exercise => exercise !== null) ?? []
+  );
+}
+
 export function StartWorkoutForm({
   templates,
   userId,
@@ -31,26 +39,35 @@ export function StartWorkoutForm({
   const router = useRouter();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const [loading, setLoading] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const handleStart = async (template?: Template) => {
+  const handleRoutineSelect = async (templateId: string | null) => {
+    setSelectedId(templateId);
+
+    const template = templateId
+      ? templates.find((item) => item.id === templateId)
+      : undefined;
+    const exercises = getTemplateExercises(template);
+
+    if (template && exercises.length === 0) {
+      toast.error("Add exercises to this routine first");
+      setSelectedId(null);
+      return;
+    }
+
     setLoading(true);
     try {
-      const exercises =
-        template?.workout_template_exercises
-          ?.sort((a, b) => a.sort_order - b.sort_order)
-          .map((te) => te.exercises)
-          .filter((e): e is Exercise => e !== null) ?? [];
-
-      const sessionId = await startWorkout(
+      await startWorkout(
         userId,
         exercises,
         template?.id ?? null,
         template ? routineDefaults[template.id] ?? {} : {},
         template?.name ?? null
       );
-      router.push(`/workouts/${sessionId}`);
+      router.push("/workouts");
     } catch {
       toast.error("Failed to start workout");
+      setSelectedId(null);
     } finally {
       setLoading(false);
     }
@@ -58,42 +75,15 @@ export function StartWorkoutForm({
 
   return (
     <div className="space-y-4">
-      {templates.length > 0 && (
-        <>
-          <p className="text-sm font-medium text-muted-foreground">Choose a routine</p>
-          <div className="space-y-2">
-            {templates.map((template) => (
-              <Card
-                key={template.id}
-                className="cursor-pointer transition-colors hover:bg-muted/50"
-                onClick={() => !loading && handleStart(template)}
-              >
-                <CardContent className="flex items-center justify-between p-4">
-                  <div>
-                    <p className="font-medium">{template.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {template.workout_template_exercises?.length ?? 0} exercises
-                    </p>
-                  </div>
-                  <Button size="sm" disabled={loading}>
-                    Start
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
-
-      <Button
-        size="lg"
-        variant="outline"
-        className="h-12 w-full"
-        onClick={() => handleStart()}
-        disabled={loading}
-      >
-        Start Empty Workout
-      </Button>
+      <RoutineSelector
+        templates={templates}
+        value={selectedId}
+        onSelect={handleRoutineSelect}
+        loading={loading}
+      />
+      <p className="text-sm text-muted-foreground">
+        Pick a routine to load your exercises and start logging.
+      </p>
     </div>
   );
 }

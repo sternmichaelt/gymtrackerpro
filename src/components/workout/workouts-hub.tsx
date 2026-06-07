@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Calendar, ChevronRight, Plus } from "lucide-react";
+import { Calendar, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { ActiveWorkout } from "@/components/workout/active-workout";
 import { CompletedWorkoutsSection } from "@/components/workout/completed-workouts-section";
-import { RoutineCard } from "@/components/workout/routine-card";
+import { RoutineSelector } from "@/components/workout/routine-selector";
 import { WorkoutLoader } from "@/components/workout/workout-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,12 +47,20 @@ interface WorkoutsHubProps {
   activeDefaults: Record<string, ExerciseSetDefaults>;
 }
 
+function getTemplateExercises(template?: Template) {
+  return (
+    template?.workout_template_exercises
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map((entry) => entry.exercises)
+      .filter((exercise): exercise is Exercise => exercise !== null) ?? []
+  );
+}
+
 export function WorkoutsHub({
   userId,
   templates,
   sessions,
   routineDefaults,
-  lastPerformed,
   stats,
   activeSession,
   activeDefaults,
@@ -64,6 +72,7 @@ export function WorkoutsHub({
   const workout = useWorkoutStore((s) => s.workout);
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const [starting, setStarting] = useState(false);
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
 
   useEffect(() => {
     init(userId);
@@ -73,20 +82,22 @@ export function WorkoutsHub({
     workout?.status === "in_progress" || workout?.status === "paused";
   const isResuming = Boolean(activeSession) && !workout;
 
-  const handleStart = async (template?: Template) => {
+  const handleRoutineSelect = async (templateId: string | null) => {
+    setSelectedRoutineId(templateId);
+
+    const template = templateId
+      ? templates.find((item) => item.id === templateId)
+      : undefined;
+    const exercises = getTemplateExercises(template);
+
+    if (template && exercises.length === 0) {
+      toast.error("Add exercises to this routine first");
+      setSelectedRoutineId(null);
+      return;
+    }
+
     setStarting(true);
     try {
-      const exercises =
-        template?.workout_template_exercises
-          ?.sort((a, b) => a.sort_order - b.sort_order)
-          .map((entry) => entry.exercises)
-          .filter((exercise): exercise is Exercise => exercise !== null) ?? [];
-
-      if (template && exercises.length === 0) {
-        toast.error("Add exercises to this routine first");
-        return;
-      }
-
       await startWorkout(
         userId,
         exercises,
@@ -96,12 +107,14 @@ export function WorkoutsHub({
       );
     } catch {
       toast.error("Failed to start workout");
+      setSelectedRoutineId(null);
     } finally {
       setStarting(false);
     }
   };
 
   const handleComplete = () => {
+    setSelectedRoutineId(null);
     router.refresh();
   };
 
@@ -128,14 +141,16 @@ export function WorkoutsHub({
   }
 
   if (isActiveWorkout) {
-    return <ActiveWorkout onComplete={handleComplete} />;
+    return (
+      <ActiveWorkout templates={templates} onComplete={handleComplete} />
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Workouts</h1>
-        <p className="text-muted-foreground">Pick a routine and log your sets</p>
+        <p className="text-muted-foreground">Choose a routine to begin</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -158,52 +173,28 @@ export function WorkoutsHub({
         </Card>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 rounded-xl border bg-card p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Start a Workout</h2>
+          <h2 className="text-lg font-semibold">Start Workout</h2>
           <Button asChild variant="ghost" size="sm">
             <Link href="/templates">
-              Manage
+              Manage Routines
               <ChevronRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>
         </div>
 
-        {templates.length > 0 ? (
-          <div className="space-y-3">
-            {templates.map((template) => (
-              <RoutineCard
-                key={template.id}
-                template={template}
-                lastPerformed={lastPerformed[template.id] ?? null}
-                defaults={routineDefaults[template.id] ?? {}}
-                loading={starting}
-                onStart={() => handleStart(template)}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="space-y-3 py-8 text-center">
-              <p className="text-muted-foreground">No routines yet</p>
-              <Button asChild>
-                <Link href="/templates/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Routine
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <RoutineSelector
+          templates={templates}
+          value={selectedRoutineId}
+          onSelect={handleRoutineSelect}
+          loading={starting}
+        />
 
-        <Button
-          variant="outline"
-          className="h-12 w-full"
-          disabled={starting}
-          onClick={() => handleStart()}
-        >
-          Start Empty Workout
-        </Button>
+        <p className="text-sm text-muted-foreground">
+          Select a routine from the dropdown. Your exercises will appear with reps and
+          weight fields — check each one off when done.
+        </p>
       </div>
 
       <CompletedWorkoutsSection
