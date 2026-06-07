@@ -32,12 +32,6 @@ interface WorkoutStore {
     defaults?: Record<string, ExerciseSetDefaults>,
     templateName?: string | null
   ) => Promise<string>;
-  loadRoutineIntoWorkout: (
-    templateId: string | null,
-    templateName: string | null,
-    exercises: Exercise[],
-    defaults?: Record<string, ExerciseSetDefaults>
-  ) => Promise<void>;
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
   endWorkout: () => Promise<string | null>;
@@ -209,33 +203,6 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     scheduleSync();
     set({ syncStatus: isNetworkOnline() ? "saved" : "offline" });
     return sessionId;
-  },
-
-  loadRoutineIntoWorkout: async (
-    templateId,
-    templateName,
-    exercises,
-    defaults = {}
-  ) => {
-    const { workout } = get();
-    if (!workout) return;
-
-    const updated = {
-      ...workout,
-      templateId,
-      templateName,
-      exercises: buildExerciseEntries(exercises, defaults),
-    };
-
-    await persistWorkout(updated);
-    set({ workout: updated, syncStatus: "saving" });
-    await syncSession(updated);
-    for (const entry of updated.exercises) {
-      await syncExerciseEntry(workout.id, entry);
-      for (const set of entry.sets) await syncSet(entry.id, set);
-    }
-    scheduleSync();
-    set({ syncStatus: isNetworkOnline() ? "saved" : "offline" });
   },
 
   pauseWorkout: async () => {
