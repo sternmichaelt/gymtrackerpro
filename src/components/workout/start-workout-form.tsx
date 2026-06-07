@@ -32,6 +32,7 @@ export function StartWorkoutForm({
   const router = useRouter();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const { routines, loading: loadingRoutines } = useSavedRoutines(userId, templates);
+  const savedRoutines = routines.length > 0 ? routines : templates;
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -39,7 +40,7 @@ export function StartWorkoutForm({
     setSelectedId(templateId);
 
     const template = templateId
-      ? routines.find((item) => item.id === templateId)
+      ? savedRoutines.find((item) => item.id === templateId)
       : undefined;
     const exercises = getTemplateExercises(template);
 
@@ -70,10 +71,10 @@ export function StartWorkoutForm({
   return (
     <div className="space-y-4">
       <RoutineSelector
-        routines={routines}
+        routines={savedRoutines}
         value={selectedId}
         onSelect={handleRoutineSelect}
-        loading={loading || loadingRoutines}
+        loading={loading || (loadingRoutines && savedRoutines.length === 0)}
       />
       <p className="text-sm text-muted-foreground">
         Pick a routine to load your exercises and start logging.

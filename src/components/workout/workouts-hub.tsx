@@ -67,6 +67,7 @@ export function WorkoutsHub({
   const [starting, setStarting] = useState(false);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
   const { routines, loading: loadingRoutines } = useSavedRoutines(userId, templates);
+  const savedRoutines = routines.length > 0 ? routines : templates;
 
   useEffect(() => {
     init(userId);
@@ -80,7 +81,7 @@ export function WorkoutsHub({
     setSelectedRoutineId(templateId);
 
     const template = templateId
-      ? routines.find((item) => item.id === templateId)
+      ? savedRoutines.find((item) => item.id === templateId)
       : undefined;
     const exercises = getTemplateExercises(template);
 
@@ -138,7 +139,7 @@ export function WorkoutsHub({
     return (
       <ActiveWorkout
         userId={userId}
-        initialRoutines={routines}
+        initialRoutines={savedRoutines}
         onComplete={handleComplete}
       />
     );
@@ -183,10 +184,10 @@ export function WorkoutsHub({
         </div>
 
         <RoutineSelector
-          routines={routines}
+          routines={savedRoutines}
           value={selectedRoutineId}
           onSelect={handleRoutineSelect}
-          loading={starting || loadingRoutines}
+          loading={starting || (loadingRoutines && savedRoutines.length === 0)}
         />
 
         <p className="text-sm text-muted-foreground">

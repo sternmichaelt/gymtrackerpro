@@ -43,6 +43,7 @@ export function ActiveWorkout({
   const endWorkout = useWorkoutStore((s) => s.endWorkout);
   const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
   const { routines } = useSavedRoutines(userId, initialRoutines);
+  const savedRoutines = routines.length > 0 ? routines : initialRoutines;
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -127,7 +128,7 @@ export function ActiveWorkout({
         </div>
 
         <RoutineSelector
-          routines={routines}
+          routines={savedRoutines}
           value={workout.templateId}
           onSelect={() => {}}
           disabled

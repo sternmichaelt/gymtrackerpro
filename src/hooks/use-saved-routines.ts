@@ -10,6 +10,15 @@ export function useSavedRoutines(userId: string, initial: SavedRoutine[] = []) {
   const [routines, setRoutines] = useState<SavedRoutine[]>(initial);
   const [loading, setLoading] = useState(initial.length === 0);
 
+  const initialKey = initial.map((routine) => routine.id).join(",");
+
+  useEffect(() => {
+    if (initial.length > 0) {
+      setRoutines(initial);
+      setLoading(false);
+    }
+  }, [initial, initialKey]);
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
