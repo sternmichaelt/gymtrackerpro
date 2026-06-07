@@ -113,10 +113,14 @@ create trigger templates_updated_at
   for each row execute function update_updated_at();
 
 -- profile on signup
-create or replace function handle_new_user()
-returns trigger as $$
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
 begin
-  insert into profiles (id, email, full_name)
+  insert into public.profiles (id, email, full_name)
   values (
     new.id,
     new.email,
@@ -124,11 +128,11 @@ begin
   );
   return new;
 end;
-$$ language plpgsql security definer;
+$$;
 
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function handle_new_user();
+  for each row execute function public.handle_new_user();
 
 -- RLS
 alter table profiles enable row level security;
