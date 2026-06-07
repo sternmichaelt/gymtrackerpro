@@ -4,6 +4,15 @@ import {
   EXAMPLE_ROUTINE_NAME,
 } from "@/lib/data/example-routine";
 
+const TEMPLATE_SELECT = `
+  *,
+  workout_template_exercises (
+    id,
+    sort_order,
+    exercises (id, name, muscle_group)
+  )
+`;
+
 async function getExampleExerciseIds() {
   const supabase = await createClient();
   const { data: exercises } = await supabase
@@ -63,9 +72,23 @@ export async function ensureExampleRoutine(userId: string) {
     return;
   }
 
+  const { data: templates } = await supabase
+    .from("workout_templates")
+    .select("sort_order")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  const nextSortOrder = (templates?.[0]?.sort_order ?? -1) + 1;
+
   const { data: template, error: templateError } = await supabase
     .from("workout_templates")
-    .insert({ user_id: userId, name: EXAMPLE_ROUTINE_NAME })
+    .insert({
+      user_id: userId,
+      name: EXAMPLE_ROUTINE_NAME,
+      sort_order: nextSortOrder,
+    })
     .select("id")
     .single();
 
@@ -74,20 +97,14 @@ export async function ensureExampleRoutine(userId: string) {
   await populateExampleRoutine(template.id, exerciseIds);
 }
 
-export async function getTemplates(userId: string) {
+export async function getTemplates(userId: string, archived = false) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("workout_templates")
-    .select(`
-      *,
-      workout_template_exercises (
-        id,
-        sort_order,
-        exercises (id, name, muscle_group)
-      )
-    `)
+    .select(TEMPLATE_SELECT)
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .eq("is_archived", archived)
+    .order("sort_order", { ascending: true });
   return data ?? [];
 }
 

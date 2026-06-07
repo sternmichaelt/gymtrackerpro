@@ -43,7 +43,8 @@ async function fetchRoutines(userId: string): Promise<RoutineOption[]> {
       )
     `)
     .eq("user_id", userId)
-    .order("created_at", { ascending: false });
+    .eq("is_archived", false)
+    .order("sort_order", { ascending: true });
 
   return (data ?? []).map((template) => {
     const entries = (template.workout_template_exercises ?? []) as {

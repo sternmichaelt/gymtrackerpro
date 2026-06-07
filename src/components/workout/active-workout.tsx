@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatElapsedMinutes, isExerciseComplete } from "@/lib/workout-utils";
+import { formatElapsedTime, isExerciseComplete } from "@/lib/workout-utils";
 
 interface ActiveWorkoutProps {
   onComplete?: () => void;
@@ -33,14 +33,15 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState("0:00");
 
   useEffect(() => {
-    if (!workout || workout.status === "paused") return;
+    if (!workout) return;
     const tick = () =>
-      setElapsed(formatElapsedMinutes(workout.startedAt, workout.pausedAt));
+      setElapsed(formatElapsedTime(workout.startedAt, workout.pausedAt));
     tick();
-    const interval = window.setInterval(tick, 30000);
+    if (workout.status === "paused") return;
+    const interval = window.setInterval(tick, 1000);
     return () => window.clearInterval(interval);
   }, [workout]);
 
@@ -97,9 +98,9 @@ export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
             <Badge variant={workout.status === "paused" ? "secondary" : "default"}>
               {workout.status === "paused" ? "Paused" : "In Progress"}
             </Badge>
-            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
-              {elapsed} min
+              {elapsed}
             </span>
           </div>
         </div>
