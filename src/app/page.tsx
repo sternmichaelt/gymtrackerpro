@@ -24,7 +24,7 @@ export default async function HomePage() {
         <Dumbbell className="h-8 w-8 text-primary" />
       </div>
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">GymTrack Pro</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Gym Tracker Pro</h1>
         <p className="max-w-sm text-muted-foreground">
           Log sets in seconds. Track progress. Works offline at the gym.
         </p>
