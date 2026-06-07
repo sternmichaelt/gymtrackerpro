@@ -75,6 +75,7 @@ export async function getCompletedSessions(userId: string, limit = 20) {
     .from("workout_sessions")
     .select(`
       *,
+      workout_templates (name),
       workout_session_exercises (
         id,
         exercise_id,
@@ -92,12 +93,66 @@ export async function getCompletedSessions(userId: string, limit = 20) {
     const allSets = exercises.flatMap(
       (e: { sets?: { weight: number | null; reps: number | null }[] }) => e.sets ?? []
     );
+    const exerciseNames = exercises
+      .map((e: { exercises?: { name: string } | null }) => e.exercises?.name)
+      .filter((name: string | undefined): name is string => Boolean(name));
     return {
       ...session,
       volume: totalVolume(allSets),
       exerciseCount: exercises.length,
+      exerciseNames,
+      routineName: session.workout_templates?.name ?? null,
     };
   });
+}
+
+export async function getWorkoutHubStats(userId: string) {
+  const supabase = await createClient();
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  const { data } = await supabase
+    .from("workout_sessions")
+    .select("completed_at")
+    .eq("user_id", userId)
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false });
+
+  const sessions = data ?? [];
+  const weekCount = sessions.filter(
+    (s) => s.completed_at && new Date(s.completed_at) >= weekAgo
+  ).length;
+
+  return {
+    weekCount,
+    lastWorkoutDate: sessions[0]?.completed_at ?? null,
+  };
+}
+
+export async function getTemplateLastPerformed(
+  userId: string,
+  templateIds: string[]
+) {
+  const supabase = await createClient();
+  const dates: Record<string, string | null> = {};
+
+  await Promise.all(
+    templateIds.map(async (templateId) => {
+      const { data } = await supabase
+        .from("workout_sessions")
+        .select("completed_at")
+        .eq("user_id", userId)
+        .eq("template_id", templateId)
+        .eq("status", "completed")
+        .order("completed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      dates[templateId] = data?.completed_at ?? null;
+    })
+  );
+
+  return dates;
 }
 
 export async function getActiveSession(userId: string) {

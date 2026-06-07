@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Pause, Play } from "lucide-react";
+import { Check, Clock, Pause, Play, X } from "lucide-react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { SyncIndicator } from "@/components/layout/sync-indicator";
@@ -17,20 +17,39 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formatElapsedMinutes, isExerciseComplete } from "@/lib/workout-utils";
 
-function isExerciseComplete(set: { weight: number | null; reps: number | null; completedAt: string | null }) {
-  return set.completedAt != null && set.weight != null && set.reps != null;
+interface ActiveWorkoutProps {
+  onComplete?: () => void;
 }
 
-export function ActiveWorkout() {
+export function ActiveWorkout({ onComplete }: ActiveWorkoutProps) {
   const router = useRouter();
   const workout = useWorkoutStore((s) => s.workout);
   const pauseWorkout = useWorkoutStore((s) => s.pauseWorkout);
   const resumeWorkout = useWorkoutStore((s) => s.resumeWorkout);
   const endWorkout = useWorkoutStore((s) => s.endWorkout);
+  const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
 
-  if (!workout) return null;
+  useEffect(() => {
+    if (!workout || workout.status === "paused") return;
+    const tick = () =>
+      setElapsed(formatElapsedMinutes(workout.startedAt, workout.pausedAt));
+    tick();
+    const interval = window.setInterval(tick, 30000);
+    return () => window.clearInterval(interval);
+  }, [workout]);
+
+  if (!workout) {
+    return (
+      <div className="py-12 text-center text-sm text-muted-foreground">
+        Loading workout...
+      </div>
+    );
+  }
 
   const completedCount = workout.exercises.filter((exercise) => {
     const set = exercise.sets[0];
@@ -41,21 +60,34 @@ export function ActiveWorkout() {
 
   const handleEnd = async () => {
     await endWorkout();
-    toast.success("Workout completed!");
-    router.push("/workouts");
+    toast.success("Workout saved!");
+    onComplete?.();
+    router.refresh();
+  };
+
+  const handleCancel = async () => {
+    await cancelWorkout();
+    toast.success("Workout cancelled");
+    onComplete?.();
     router.refresh();
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold">
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">
             {workout.templateName ?? "Active Workout"}
           </h1>
-          <Badge variant={workout.status === "paused" ? "secondary" : "default"}>
-            {workout.status === "paused" ? "Paused" : "In Progress"}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={workout.status === "paused" ? "secondary" : "default"}>
+              {workout.status === "paused" ? "Paused" : "In Progress"}
+            </Badge>
+            <span className="flex items-center gap-1 text-sm text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {elapsed} min
+            </span>
+          </div>
         </div>
         <SyncIndicator />
       </div>
@@ -70,40 +102,62 @@ export function ActiveWorkout() {
             <Pause className="mr-2 h-4 w-4" /> Pause
           </Button>
         )}
+        <Button variant="ghost" onClick={() => setShowCancelDialog(true)}>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
       <WorkoutSchedule />
 
-      <Button
-        size="lg"
-        className="h-14 w-full"
-        disabled={!allComplete}
-        onClick={() => setShowEndDialog(true)}
-      >
-        <Check className="mr-2 h-5 w-5" />
-        Complete Workout
-      </Button>
-
-      {!allComplete && workout.exercises.length > 0 && (
-        <p className="text-center text-xs text-muted-foreground">
-          Complete all exercises to finish your workout ({completedCount}/
-          {workout.exercises.length})
-        </p>
-      )}
+      <div className="sticky bottom-20 space-y-2 rounded-xl border bg-background/95 p-4 backdrop-blur">
+        <Button
+          size="lg"
+          className="h-14 w-full text-base"
+          disabled={!allComplete}
+          onClick={() => setShowEndDialog(true)}
+        >
+          <Check className="mr-2 h-5 w-5" />
+          Complete Workout
+        </Button>
+        {!allComplete && workout.exercises.length > 0 && (
+          <p className="text-center text-xs text-muted-foreground">
+            Finish all {workout.exercises.length} exercises to save ({completedCount} done)
+          </p>
+        )}
+      </div>
 
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete workout?</DialogTitle>
+            <DialogTitle>Save this workout?</DialogTitle>
             <DialogDescription>
-              Your workout will be saved to history.
+              {completedCount} exercises logged. This will be added to your history.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowEndDialog(false)}>
-              Cancel
+              Keep Going
             </Button>
-            <Button onClick={handleEnd}>Complete Workout</Button>
+            <Button onClick={handleEnd}>Save Workout</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel workout?</DialogTitle>
+            <DialogDescription>
+              Your progress will be discarded and this workout won&apos;t be saved.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Keep Going
+            </Button>
+            <Button variant="destructive" onClick={handleCancel}>
+              Cancel Workout
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

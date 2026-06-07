@@ -50,7 +50,15 @@ export async function ensureExampleRoutine(userId: string) {
 
   if (existing) {
     const exerciseCount = existing.workout_template_exercises?.length ?? 0;
-    if (exerciseCount > 0) return;
+    if (exerciseCount >= EXAMPLE_ROUTINE_EXERCISES.length) return;
+
+    if (exerciseCount > 0) {
+      await supabase
+        .from("workout_template_exercises")
+        .delete()
+        .eq("template_id", existing.id);
+    }
+
     await populateExampleRoutine(existing.id, exerciseIds);
     return;
   }

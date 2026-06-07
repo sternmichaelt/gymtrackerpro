@@ -1,21 +1,18 @@
 "use client";
 
-import { Check, Plus } from "lucide-react";
+import { Check, Pencil, Plus } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { ExercisePicker } from "@/components/workout/exercise-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { isExerciseComplete } from "@/lib/workout-utils";
 
 function parseNumber(value: string) {
   if (!value.trim()) return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function isExerciseComplete(set: { weight: number | null; reps: number | null; completedAt: string | null }) {
-  return set.completedAt != null && set.weight != null && set.reps != null;
 }
 
 export function WorkoutSchedule() {
@@ -30,18 +27,30 @@ export function WorkoutSchedule() {
     const set = exercise.sets[0];
     return set && isExerciseComplete(set);
   }).length;
+  const progress =
+    workout.exercises.length > 0
+      ? Math.round((completedCount / workout.exercises.length) * 100)
+      : 0;
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">
-            {workout.templateName ?? "Today's Workout"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {completedCount} of {workout.exercises.length} exercises complete
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium">
+            {completedCount} of {workout.exercises.length} complete
           </p>
+          <p className="text-sm text-muted-foreground">{progress}%</p>
         </div>
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">Log reps and weight for each exercise</p>
         <ExercisePicker
           onSelect={addExercise}
           trigger={
@@ -56,7 +65,7 @@ export function WorkoutSchedule() {
       {workout.exercises.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            Add exercises to build your workout.
+            No exercises yet. Add exercises to start logging.
           </CardContent>
         </Card>
       ) : (
@@ -80,36 +89,35 @@ export function WorkoutSchedule() {
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-medium">
+                      <p className="text-base font-semibold">
                         {index + 1}. {exercise.exerciseName}
                       </p>
-                      {isComplete && (
-                        <p className="text-sm text-muted-foreground">
+                      {isComplete ? (
+                        <p className="mt-1 text-sm font-medium text-primary">
                           {set.reps} reps · {set.weight} lbs
                         </p>
-                      )}
+                      ) : hasPrevious ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Last time: {exercise.previousReps ?? "—"} reps ·{" "}
+                          {exercise.previousWeight ?? "—"} lbs
+                        </p>
+                      ) : null}
                     </div>
                     {isComplete && (
-                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                         <Check className="h-4 w-4" />
                       </span>
                     )}
                   </div>
 
-                  {hasPrevious && !isComplete && (
-                    <p className="text-xs text-muted-foreground">
-                      Last time: {exercise.previousReps ?? "—"} reps ·{" "}
-                      {exercise.previousWeight ?? "—"} lbs
-                    </p>
-                  )}
-
                   {!isComplete && (
-                    <div className="grid grid-cols-[1fr_1fr] gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Reps
                         </label>
                         <Input
+                          className="h-12 text-lg"
                           type="number"
                           inputMode="numeric"
                           placeholder={exercise.previousReps?.toString() ?? "0"}
@@ -122,10 +130,11 @@ export function WorkoutSchedule() {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Weight (lbs)
                         </label>
                         <Input
+                          className="h-12 text-lg"
                           type="number"
                           inputMode="decimal"
                           placeholder={exercise.previousWeight?.toString() ?? "0"}
@@ -140,16 +149,29 @@ export function WorkoutSchedule() {
                     </div>
                   )}
 
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    variant={isComplete ? "secondary" : "default"}
-                    disabled={isComplete || set.weight == null || set.reps == null}
-                    onClick={() => completeSet(exercise.id, set.id)}
-                  >
-                    <Check className="mr-2 h-4 w-4" />
-                    {isComplete ? "Completed" : "Complete Exercise"}
-                  </Button>
+                  {isComplete ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        updateSet(exercise.id, set.id, { completedAt: null })
+                      }
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <Button
+                      size="lg"
+                      className="h-12 w-full"
+                      disabled={set.weight == null || set.reps == null}
+                      onClick={() => completeSet(exercise.id, set.id)}
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      Complete Exercise
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );

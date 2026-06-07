@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useWorkoutStore } from "@/stores/workout-store";
 import type { ActiveWorkout, ExerciseSetDefaults } from "@/lib/types/database";
 
-interface WorkoutLoaderProps {
+export interface WorkoutLoaderProps {
   previousDefaults?: Record<string, ExerciseSetDefaults>;
   session: {
     id: string;

@@ -35,6 +35,7 @@ interface WorkoutStore {
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
   endWorkout: () => Promise<void>;
+  cancelWorkout: () => Promise<void>;
   addExercise: (exercise: Exercise) => Promise<void>;
   removeExercise: (exerciseEntryId: string) => Promise<void>;
   addSet: (exerciseEntryId: string) => Promise<void>;
@@ -211,6 +212,22 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const updated = {
       ...workout,
       status: "completed" as const,
+      completedAt: new Date().toISOString(),
+    };
+    await persistWorkout(updated);
+    set({ workout: updated, syncStatus: "saving" });
+    await syncSession(updated);
+    scheduleSync();
+    await db.activeWorkout.delete(workout.id);
+    set({ workout: null, syncStatus: isNetworkOnline() ? "saved" : "offline" });
+  },
+
+  cancelWorkout: async () => {
+    const { workout } = get();
+    if (!workout) return;
+    const updated = {
+      ...workout,
+      status: "cancelled" as const,
       completedAt: new Date().toISOString(),
     };
     await persistWorkout(updated);
