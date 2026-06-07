@@ -137,7 +137,7 @@ export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
             <LayoutList className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-semibold">Add Saved Routine</p>
+            <p className="font-semibold">Start Workout with a Routine</p>
             <p className="text-sm text-muted-foreground">
               Add all exercises from one of your routines
             </p>
@@ -153,7 +153,7 @@ export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
             <Dumbbell className="h-6 w-6" />
           </div>
           <div>
-            <p className="font-semibold">Add Single Exercise</p>
+            <p className="font-semibold">Single Exercise</p>
             <p className="text-sm text-muted-foreground">
               Pick one exercise to add to today&apos;s workout
             </p>
