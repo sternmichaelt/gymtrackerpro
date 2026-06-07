@@ -40,7 +40,7 @@ export default async function EditTemplatePage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Edit Template</h1>
+        <h1 className="text-2xl font-bold">Edit Routine</h1>
         <p className="text-muted-foreground">{template.name}</p>
       </div>
       <TemplateForm

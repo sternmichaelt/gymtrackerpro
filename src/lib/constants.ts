@@ -21,7 +21,7 @@ export const EQUIPMENT_TYPES = [
 export const NAV_ITEMS = [
   { href: "/overview", label: "Overview", icon: "home" },
   { href: "/workouts", label: "Workouts", icon: "dumbbell" },
-  { href: "/templates", label: "Templates", icon: "layout" },
+  { href: "/templates", label: "Routines", icon: "layout" },
   { href: "/progress", label: "Progress", icon: "chart" },
   { href: "/settings", label: "Settings", icon: "settings" },
 ] as const;

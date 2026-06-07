@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { getTemplates } from "@/lib/queries/templates";
+import { ensureExampleRoutine, getTemplates } from "@/lib/queries/templates";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -13,14 +13,15 @@ export default async function TemplatesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  await ensureExampleRoutine(user.id);
   const templates = await getTemplates(user.id);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Templates</h1>
-          <p className="text-muted-foreground">Saved workout routines</p>
+          <h1 className="text-2xl font-bold">Routines</h1>
+          <p className="text-muted-foreground">Your saved routines</p>
         </div>
         <Button asChild size="sm">
           <Link href="/templates/new">
@@ -33,9 +34,9 @@ export default async function TemplatesPage() {
       {templates.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No templates yet</p>
+            <p className="text-muted-foreground">No routines yet</p>
             <Button asChild className="mt-4">
-              <Link href="/templates/new">Create your first template</Link>
+              <Link href="/templates/new">Create your first routine</Link>
             </Button>
           </CardContent>
         </Card>

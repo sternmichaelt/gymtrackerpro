@@ -7,6 +7,7 @@ import type {
   ActiveWorkoutExercise,
   ActiveWorkoutSet,
   Exercise,
+  ExerciseSetDefaults,
   SyncStatus,
 } from "@/lib/types/database";
 import { db } from "@/lib/offline/db";
@@ -27,7 +28,8 @@ interface WorkoutStore {
   startWorkout: (
     userId: string,
     exercises?: Exercise[],
-    templateId?: string | null
+    templateId?: string | null,
+    defaults?: Record<string, ExerciseSetDefaults>
   ) => Promise<string>;
   pauseWorkout: () => Promise<void>;
   resumeWorkout: () => Promise<void>;
@@ -116,7 +118,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     if (active) set({ workout: active });
   },
 
-  startWorkout: async (userId, exercises = [], templateId = null) => {
+  startWorkout: async (userId, exercises = [], templateId = null, defaults = {}) => {
     const sessionId = uuidv4();
     const workout: ActiveWorkout = {
       id: sessionId,
@@ -127,25 +129,30 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       pausedAt: null,
       completedAt: null,
       notes: null,
-      exercises: exercises.map((ex, i) => ({
-        id: uuidv4(),
-        exerciseId: ex.id,
-        exerciseName: ex.name,
-        muscleGroup: ex.muscle_group,
-        equipmentType: ex.equipment_type,
-        sortOrder: i,
-        sets: [
-          {
-            id: uuidv4(),
-            setNumber: 1,
-            weight: null,
-            reps: null,
-            notes: null,
-            isWarmup: false,
-            completedAt: new Date().toISOString(),
-          },
-        ],
-      })),
+      exercises: exercises.map((ex, i) => {
+        const previous = defaults[ex.id];
+        return {
+          id: uuidv4(),
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          muscleGroup: ex.muscle_group,
+          equipmentType: ex.equipment_type,
+          sortOrder: i,
+          previousWeight: previous?.weight ?? null,
+          previousReps: previous?.reps ?? null,
+          sets: [
+            {
+              id: uuidv4(),
+              setNumber: 1,
+              weight: previous?.weight ?? null,
+              reps: previous?.reps ?? null,
+              notes: null,
+              isWarmup: false,
+              completedAt: new Date().toISOString(),
+            },
+          ],
+        };
+      }),
     };
 
     await persistWorkout(workout);
@@ -339,6 +346,5 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     await get().updateSet(exerciseEntryId, setId, {
       completedAt: new Date().toISOString(),
     });
-    await get().addSet(exerciseEntryId);
   },
 }));

@@ -72,7 +72,7 @@ export function TemplateForm({
 
   const handleSave = async () => {
     if (!name.trim()) {
-      toast.error("Template name is required");
+      toast.error("Routine name is required");
       return;
     }
     setLoading(true);
@@ -111,7 +111,7 @@ export function TemplateForm({
         if (error) throw error;
       }
 
-      toast.success(templateId ? "Template updated" : "Template created");
+      toast.success(templateId ? "Routine updated" : "Routine created");
       router.push("/templates");
       router.refresh();
     } catch (err) {
@@ -142,7 +142,7 @@ export function TemplateForm({
         );
       }
 
-      toast.success("Template duplicated");
+      toast.success("Routine duplicated");
       router.push("/templates");
       router.refresh();
     } catch (err) {
@@ -164,7 +164,7 @@ export function TemplateForm({
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success("Template deleted");
+      toast.success("Routine deleted");
       router.push("/templates");
       router.refresh();
     }
@@ -173,7 +173,7 @@ export function TemplateForm({
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="name">Template Name</Label>
+        <Label htmlFor="name">Routine Name</Label>
         <Input
           id="name"
           value={name}
@@ -229,7 +229,7 @@ export function TemplateForm({
       </div>
 
       <Button className="w-full" onClick={handleSave} disabled={loading}>
-        {loading ? "Saving..." : templateId ? "Update Template" : "Create Template"}
+        {loading ? "Saving..." : templateId ? "Update Routine" : "Create Routine"}
       </Button>
 
       {templateId && (

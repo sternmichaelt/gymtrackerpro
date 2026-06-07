@@ -12,8 +12,8 @@ export default async function NewTemplatePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">New Template</h1>
-        <p className="text-muted-foreground">Build a reusable workout routine</p>
+        <h1 className="text-2xl font-bold">New Routine</h1>
+        <p className="text-muted-foreground">Build a reusable routine</p>
       </div>
       <TemplateForm userId={user.id} />
     </div>

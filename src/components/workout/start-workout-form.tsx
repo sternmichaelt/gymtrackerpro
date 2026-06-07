@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { Exercise } from "@/lib/types/database";
+import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
 interface Template {
   id: string;
@@ -20,9 +20,14 @@ interface Template {
 interface StartWorkoutFormProps {
   templates: Template[];
   userId: string;
+  routineDefaults: Record<string, Record<string, ExerciseSetDefaults>>;
 }
 
-export function StartWorkoutForm({ templates, userId }: StartWorkoutFormProps) {
+export function StartWorkoutForm({
+  templates,
+  userId,
+  routineDefaults,
+}: StartWorkoutFormProps) {
   const router = useRouter();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const [loading, setLoading] = useState(false);
@@ -36,7 +41,12 @@ export function StartWorkoutForm({ templates, userId }: StartWorkoutFormProps) {
           .map((te) => te.exercises)
           .filter((e): e is Exercise => e !== null) ?? [];
 
-      const sessionId = await startWorkout(userId, exercises, template?.id ?? null);
+      const sessionId = await startWorkout(
+        userId,
+        exercises,
+        template?.id ?? null,
+        template ? routineDefaults[template.id] ?? {} : {}
+      );
       router.push(`/workouts/${sessionId}`);
     } catch {
       toast.error("Failed to start workout");
@@ -58,7 +68,7 @@ export function StartWorkoutForm({ templates, userId }: StartWorkoutFormProps) {
 
       {templates.length > 0 && (
         <>
-          <p className="text-sm font-medium text-muted-foreground">From template</p>
+          <p className="text-sm font-medium text-muted-foreground">From routine</p>
           <div className="space-y-2">
             {templates.map((template) => (
               <Card

@@ -2,9 +2,10 @@
 
 import { useEffect } from "react";
 import { useWorkoutStore } from "@/stores/workout-store";
-import type { ActiveWorkout } from "@/lib/types/database";
+import type { ActiveWorkout, ExerciseSetDefaults } from "@/lib/types/database";
 
 interface WorkoutLoaderProps {
+  previousDefaults?: Record<string, ExerciseSetDefaults>;
   session: {
     id: string;
     user_id: string;
@@ -37,7 +38,10 @@ interface WorkoutLoaderProps {
   };
 }
 
-export function WorkoutLoader({ session }: WorkoutLoaderProps) {
+export function WorkoutLoader({
+  session,
+  previousDefaults = {},
+}: WorkoutLoaderProps) {
   const workout = useWorkoutStore((s) => s.workout);
   const loadWorkout = useWorkoutStore((s) => s.loadWorkout);
 
@@ -55,13 +59,17 @@ export function WorkoutLoader({ session }: WorkoutLoaderProps) {
       notes: session.notes,
       exercises: (session.workout_session_exercises ?? [])
         .sort((a, b) => a.sort_order - b.sort_order)
-        .map((entry) => ({
+        .map((entry) => {
+          const previous = previousDefaults[entry.exercise_id];
+          return {
           id: entry.id,
           exerciseId: entry.exercise_id,
           exerciseName: entry.exercises?.name ?? "Unknown",
           muscleGroup: (entry.exercises?.muscle_group ?? "full_body") as ActiveWorkout["exercises"][0]["muscleGroup"],
           equipmentType: (entry.exercises?.equipment_type ?? "other") as ActiveWorkout["exercises"][0]["equipmentType"],
           sortOrder: entry.sort_order,
+          previousWeight: previous?.weight ?? null,
+          previousReps: previous?.reps ?? null,
           sets: (entry.sets ?? [])
             .sort((a, b) => a.set_number - b.set_number)
             .map((s) => ({
@@ -73,7 +81,8 @@ export function WorkoutLoader({ session }: WorkoutLoaderProps) {
               isWarmup: s.is_warmup,
               completedAt: s.completed_at,
             })),
-        })),
+        };
+        }),
     };
 
     if (activeWorkout.exercises.length === 0) {

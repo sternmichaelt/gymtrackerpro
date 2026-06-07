@@ -88,6 +88,11 @@ export interface WorkoutSet {
   created_at: string;
 }
 
+export interface ExerciseSetDefaults {
+  weight: number | null;
+  reps: number | null;
+}
+
 export interface ActiveWorkoutExercise {
   id: string;
   exerciseId: string;
@@ -95,6 +100,8 @@ export interface ActiveWorkoutExercise {
   muscleGroup: MuscleGroup;
   equipmentType: EquipmentType;
   sortOrder: number;
+  previousWeight?: number | null;
+  previousReps?: number | null;
   sets: ActiveWorkoutSet[];
 }
 

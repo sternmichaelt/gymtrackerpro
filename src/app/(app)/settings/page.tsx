@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { LogOut } from "lucide-react";
+import { LogOut, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,12 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [themeReady, setThemeReady] = useState(false);
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    setThemeReady(true);
+  }, []);
 
   useEffect(() => {
     const supabase = createClient();
@@ -98,7 +105,30 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">App</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Appearance</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={theme === "light" ? "default" : "outline"}
+                onClick={() => setTheme("light")}
+                disabled={!themeReady}
+              >
+                <Sun className="mr-2 h-4 w-4" />
+                Light
+              </Button>
+              <Button
+                type="button"
+                variant={theme === "dark" ? "default" : "outline"}
+                onClick={() => setTheme("dark")}
+                disabled={!themeReady}
+              >
+                <Moon className="mr-2 h-4 w-4" />
+                Dark
+              </Button>
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
             Install GymTrack Pro to your home screen for the best gym experience.
           </p>
