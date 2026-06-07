@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChevronLeft, Dumbbell, LayoutList } from "lucide-react";
+import { ChevronLeft, ChevronRight, Dumbbell, LayoutList } from "lucide-react";
+import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
+import { ActiveWorkout } from "@/components/workout/active-workout";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useSavedRoutines } from "@/hooks/use-saved-routines";
+import { cn } from "@/lib/utils";
 import type { SavedRoutine } from "@/lib/queries/templates-client";
+import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
 type Step = "menu" | "routines" | "exercise";
 
 interface WorkoutStartProps {
   userId: string;
   templates: SavedRoutine[];
+  routineDefaults?: Record<string, Record<string, ExerciseSetDefaults>>;
 }
 
 function getExerciseCount(routine: SavedRoutine) {
@@ -21,11 +28,26 @@ function getExerciseCount(routine: SavedRoutine) {
   ).length;
 }
 
-export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
+function getTemplateExercises(template?: SavedRoutine) {
+  return (
+    template?.workout_template_exercises
+      ?.sort((a, b) => a.sort_order - b.sort_order)
+      .map((entry) => entry.exercises)
+      .filter((exercise): exercise is Exercise => exercise !== null) ?? []
+  );
+}
+
+export function WorkoutStart({
+  userId,
+  templates,
+  routineDefaults = {},
+}: WorkoutStartProps) {
   const [step, setStep] = useState<Step>("menu");
+  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const init = useWorkoutStore((s) => s.init);
   const workout = useWorkoutStore((s) => s.workout);
-  const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
+  const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const { routines, loading } = useSavedRoutines(userId, templates);
   const savedRoutines = routines.length > 0 ? routines : templates;
 
@@ -33,14 +55,42 @@ export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
     init(userId);
   }, [init, userId]);
 
-  useEffect(() => {
-    if (
-      workout?.status === "in_progress" ||
-      workout?.status === "paused"
-    ) {
-      cancelWorkout();
+  if (
+    workout?.status === "in_progress" ||
+    workout?.status === "paused"
+  ) {
+    return (
+      <ActiveWorkout
+        userId={userId}
+        initialRoutines={savedRoutines}
+        routineDefaults={routineDefaults}
+      />
+    );
+  }
+
+  const selectedRoutine = selectedRoutineId
+    ? savedRoutines.find((routine) => routine.id === selectedRoutineId)
+    : null;
+  const selectedExercises = getTemplateExercises(selectedRoutine ?? undefined);
+
+  const handleStartRoutine = async () => {
+    if (!selectedRoutine || selectedExercises.length === 0) return;
+
+    setStarting(true);
+    try {
+      await startWorkout(
+        userId,
+        selectedExercises,
+        selectedRoutine.id,
+        routineDefaults[selectedRoutine.id] ?? {},
+        selectedRoutine.name
+      );
+    } catch {
+      toast.error("Failed to start workout");
+    } finally {
+      setStarting(false);
     }
-  }, [workout?.status, cancelWorkout]);
+  };
 
   if (step === "routines") {
     return (
@@ -49,7 +99,10 @@ export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
           variant="ghost"
           size="sm"
           className="-ml-2"
-          onClick={() => setStep("menu")}
+          onClick={() => {
+            setSelectedRoutineId(null);
+            setStep("menu");
+          }}
         >
           <ChevronLeft className="mr-1 h-4 w-4" />
           Back
@@ -72,28 +125,94 @@ export function WorkoutStart({ userId, templates }: WorkoutStartProps) {
             </Button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {savedRoutines.map((routine) => {
-              const count = getExerciseCount(routine);
-              return (
-                <button
-                  key={routine.id}
-                  type="button"
-                  className="flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
-                  onClick={() => {
-                    // Workout logging UI will be built next
-                  }}
+          <>
+            <div className="space-y-2">
+              {savedRoutines.map((routine) => {
+                const count = getExerciseCount(routine);
+                const isSelected = selectedRoutineId === routine.id;
+                return (
+                  <button
+                    key={routine.id}
+                    type="button"
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors hover:bg-muted/50",
+                      isSelected && "border-primary bg-primary/5"
+                    )}
+                    onClick={() => setSelectedRoutineId(routine.id)}
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold">{routine.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {count} exercise{count === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedRoutine && (
+              <section className="space-y-3 border-t pt-4">
+                <div>
+                  <h2 className="text-lg font-semibold">{selectedRoutine.name}</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedExercises.length} exercise
+                    {selectedExercises.length === 1 ? "" : "s"} in this workout
+                  </p>
+                </div>
+
+                {selectedExercises.length === 0 ? (
+                  <Card>
+                    <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                      No exercises in this routine yet.{" "}
+                      <Link
+                        href={`/templates/${selectedRoutine.id}`}
+                        className="text-primary underline"
+                      >
+                        Add exercises
+                      </Link>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <ul className="space-y-2">
+                    {selectedExercises.map((exercise, index) => {
+                      const last = routineDefaults[selectedRoutine.id]?.[exercise.id];
+                      return (
+                        <li
+                          key={exercise.id}
+                          className="flex items-center justify-between gap-3 rounded-xl border p-3"
+                        >
+                          <div className="min-w-0 space-y-1">
+                            <p className="font-medium">
+                              {index + 1}. {exercise.name}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="secondary">{exercise.muscle_group}</Badge>
+                              <Badge variant="outline">{exercise.equipment_type}</Badge>
+                            </div>
+                          </div>
+                          {last?.reps != null && last?.weight != null && (
+                            <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                              {last.reps} × {last.weight} lbs
+                            </span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+
+                <Button
+                  className="h-12 w-full"
+                  disabled={starting || selectedExercises.length === 0}
+                  onClick={handleStartRoutine}
                 >
-                  <div className="min-w-0">
-                    <p className="font-semibold">{routine.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {count} exercise{count === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  {starting ? "Starting..." : `Start ${selectedRoutine.name}`}
+                  <ChevronRight className="ml-1 h-4 w-4" />
+                </Button>
+              </section>
+            )}
+          </>
         )}
       </div>
     );
