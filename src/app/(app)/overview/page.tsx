@@ -3,10 +3,8 @@ import { redirect } from "next/navigation";
 import { Plus, Flame, Trophy, Dumbbell } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDashboardStats } from "@/lib/queries/analytics";
-import { getActiveSession } from "@/lib/queries/workouts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 
 export default async function OverviewPage() {
   const supabase = await createClient();
@@ -15,10 +13,7 @@ export default async function OverviewPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [stats, activeSession] = await Promise.all([
-    getDashboardStats(user.id),
-    getActiveSession(user.id),
-  ]);
+  const stats = await getDashboardStats(user.id);
 
   return (
     <div className="space-y-6">
@@ -27,26 +22,12 @@ export default async function OverviewPage() {
         <p className="text-muted-foreground">Your training at a glance</p>
       </div>
 
-      {activeSession ? (
-        <Card className="border-primary/50 bg-primary/5">
-          <CardContent className="flex items-center justify-between p-4">
-            <div>
-              <p className="font-semibold">Workout in progress</p>
-              <Badge>{activeSession.status}</Badge>
-            </div>
-            <Button asChild>
-              <Link href={`/workouts/${activeSession.id}`}>Continue</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Button asChild size="lg" className="h-14 w-full text-base">
-          <Link href="/workouts">
-            <Plus className="mr-2 h-5 w-5" />
-            Start Workout
-          </Link>
-        </Button>
-      )}
+      <Button asChild size="lg" className="h-14 w-full text-base">
+        <Link href="/workouts">
+          <Plus className="mr-2 h-5 w-5" />
+          Start Workout
+        </Link>
+      </Button>
 
       <div className="grid grid-cols-2 gap-3">
         <Card>
