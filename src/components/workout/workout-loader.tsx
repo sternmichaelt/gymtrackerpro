@@ -44,10 +44,13 @@ export function WorkoutLoader({
   previousDefaults = {},
 }: WorkoutLoaderProps) {
   const workout = useWorkoutStore((s) => s.workout);
-  const loadWorkout = useWorkoutStore((s) => s.loadWorkout);
 
   useEffect(() => {
-    if (workout?.id === session.id) return;
+    if (workout?.id === session.id) {
+      if (workout.exercises.length >= (session.workout_session_exercises?.length ?? 0)) {
+        return;
+      }
+    }
 
     const activeWorkout: ActiveWorkout = {
       id: session.id,
@@ -91,9 +94,16 @@ export function WorkoutLoader({
       activeWorkout.exercises = [];
     }
 
+    const { workout: current } = useWorkoutStore.getState();
+    if (
+      current?.id === session.id &&
+      current.exercises.length >= activeWorkout.exercises.length
+    ) {
+      return;
+    }
+
     useWorkoutStore.setState({ workout: activeWorkout });
-    loadWorkout(session.user_id);
-  }, [session, workout?.id, loadWorkout]);
+  }, [session, workout?.id, workout?.exercises.length]);
 
   return null;
 }

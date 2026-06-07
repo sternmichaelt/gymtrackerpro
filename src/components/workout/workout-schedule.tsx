@@ -2,7 +2,7 @@
 
 import { Check, Pencil, Plus } from "lucide-react";
 import { useWorkoutStore } from "@/stores/workout-store";
-import { ExercisePicker } from "@/components/workout/exercise-picker";
+import { WorkoutAddMenu } from "@/components/workout/workout-add-menu";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,19 +17,19 @@ function parseNumber(value: string) {
 
 export function WorkoutSchedule() {
   const workout = useWorkoutStore((s) => s.workout);
-  const addExercise = useWorkoutStore((s) => s.addExercise);
+  const exercises = useWorkoutStore((s) => s.workout?.exercises ?? []);
   const updateSet = useWorkoutStore((s) => s.updateSet);
   const completeSet = useWorkoutStore((s) => s.completeSet);
 
   if (!workout) return null;
 
-  const completedCount = workout.exercises.filter((exercise) => {
+  const completedCount = exercises.filter((exercise) => {
     const set = exercise.sets[0];
     return set && isExerciseComplete(set);
   }).length;
   const progress =
-    workout.exercises.length > 0
-      ? Math.round((completedCount / workout.exercises.length) * 100)
+    exercises.length > 0
+      ? Math.round((completedCount / exercises.length) * 100)
       : 0;
 
   return (
@@ -51,8 +51,7 @@ export function WorkoutSchedule() {
 
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">Log reps and weight for each exercise</p>
-        <ExercisePicker
-          onSelect={addExercise}
+        <WorkoutAddMenu
           trigger={
             <Button size="sm" variant="outline">
               <Plus className="mr-1 h-4 w-4" />
@@ -62,15 +61,25 @@ export function WorkoutSchedule() {
         />
       </div>
 
-      {workout.exercises.length === 0 ? (
+      {exercises.length === 0 ? (
         <Card>
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No exercises yet. Add exercises to start logging.
+          <CardContent className="space-y-4 py-10 text-center">
+            <p className="text-sm text-muted-foreground">
+              No exercises yet. Add a saved routine or pick single exercises.
+            </p>
+            <WorkoutAddMenu
+              trigger={
+                <Button>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add to Workout
+                </Button>
+              }
+            />
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {workout.exercises.map((exercise, index) => {
+          {exercises.map((exercise, index) => {
             const set = exercise.sets[0];
             if (!set) return null;
 

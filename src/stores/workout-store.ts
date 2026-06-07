@@ -37,6 +37,10 @@ interface WorkoutStore {
   endWorkout: () => Promise<void>;
   cancelWorkout: () => Promise<void>;
   addExercise: (exercise: Exercise) => Promise<void>;
+  addExercises: (
+    exercises: Exercise[],
+    defaults?: Record<string, ExerciseSetDefaults>
+  ) => Promise<number>;
   removeExercise: (exerciseEntryId: string) => Promise<void>;
   addSet: (exerciseEntryId: string) => Promise<void>;
   updateSet: (
@@ -111,6 +115,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   loadWorkout: async (userId) => {
+    const { workout: current } = get();
+    if (
+      current?.userId === userId &&
+      (current.status === "in_progress" || current.status === "paused")
+    ) {
+      return;
+    }
+
     const local = await db.activeWorkout.toArray();
     const active = local.find(
       (w) =>
@@ -239,37 +251,62 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   addExercise: async (exercise) => {
+    await get().addExercises([exercise]);
+  },
+
+  addExercises: async (exercises, defaults = {}) => {
     const { workout } = get();
-    if (!workout) return;
-    const entry: ActiveWorkoutExercise = {
-      id: uuidv4(),
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      muscleGroup: exercise.muscle_group,
-      equipmentType: exercise.equipment_type,
-      sortOrder: workout.exercises.length,
-      sets: [
-        {
-          id: uuidv4(),
-          setNumber: 1,
-          weight: null,
-          reps: null,
-          notes: null,
-          isWarmup: false,
-          completedAt: null,
-        },
-      ],
-    };
+    if (!workout) return 0;
+
+    const existingIds = new Set(workout.exercises.map((entry) => entry.exerciseId));
+    const newEntries: ActiveWorkoutExercise[] = [];
+
+    for (const exercise of exercises) {
+      if (existingIds.has(exercise.id)) continue;
+
+      const previous = defaults[exercise.id];
+      newEntries.push({
+        id: uuidv4(),
+        exerciseId: exercise.id,
+        exerciseName: exercise.name,
+        muscleGroup: exercise.muscle_group,
+        equipmentType: exercise.equipment_type,
+        sortOrder: workout.exercises.length + newEntries.length,
+        previousWeight: previous?.weight ?? null,
+        previousReps: previous?.reps ?? null,
+        sets: [
+          {
+            id: uuidv4(),
+            setNumber: 1,
+            weight: previous?.weight ?? null,
+            reps: previous?.reps ?? null,
+            notes: null,
+            isWarmup: false,
+            completedAt: null,
+          },
+        ],
+      });
+      existingIds.add(exercise.id);
+    }
+
+    if (newEntries.length === 0) return 0;
+
     const updated = {
       ...workout,
-      exercises: [...workout.exercises, entry],
+      exercises: [...workout.exercises, ...newEntries],
     };
-    await persistWorkout(updated);
+
     set({ workout: updated, syncStatus: "saving" });
-    await syncExerciseEntry(workout.id, entry);
-    await syncSet(entry.id, entry.sets[0]);
+    await persistWorkout(updated);
+
+    for (const entry of newEntries) {
+      await syncExerciseEntry(workout.id, entry);
+      for (const set of entry.sets) await syncSet(entry.id, set);
+    }
+
     scheduleSync();
     set({ syncStatus: isNetworkOnline() ? "saved" : "offline" });
+    return newEntries.length;
   },
 
   removeExercise: async (exerciseEntryId) => {
