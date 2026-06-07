@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getTemplate } from "@/lib/queries/templates";
+import { getTemplate, supportsTemplateArchive } from "@/lib/queries/templates";
 import { TemplateForm } from "@/components/templates/template-form";
 
 export default async function EditTemplatePage({
@@ -15,7 +15,10 @@ export default async function EditTemplatePage({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const template = await getTemplate(id);
+  const [template, archiveEnabled] = await Promise.all([
+    getTemplate(id),
+    supportsTemplateArchive(),
+  ]);
   if (!template) notFound();
 
   const exercises = (template.workout_template_exercises ?? [])
@@ -48,6 +51,7 @@ export default async function EditTemplatePage({
         initialName={template.name}
         initialExercises={exercises}
         userId={user.id}
+        archiveEnabled={archiveEnabled}
       />
     </div>
   );

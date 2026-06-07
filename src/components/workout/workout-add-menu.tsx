@@ -16,6 +16,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { MUSCLE_GROUPS } from "@/lib/constants";
+import { isMissingTemplateColumnError } from "@/lib/templates-compat";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
 type View = "menu" | "routine" | "exercise";
@@ -32,7 +33,8 @@ interface WorkoutAddMenuProps {
 
 async function fetchRoutines(userId: string): Promise<RoutineOption[]> {
   const supabase = createClient();
-  const { data } = await supabase
+
+  const modernQuery = await supabase
     .from("workout_templates")
     .select(`
       id,
@@ -45,6 +47,23 @@ async function fetchRoutines(userId: string): Promise<RoutineOption[]> {
     .eq("user_id", userId)
     .eq("is_archived", false)
     .order("sort_order", { ascending: true });
+
+  let data = modernQuery.data;
+  if (modernQuery.error && isMissingTemplateColumnError(modernQuery.error)) {
+    const legacyQuery = await supabase
+      .from("workout_templates")
+      .select(`
+        id,
+        name,
+        workout_template_exercises (
+          sort_order,
+          exercises (*)
+        )
+      `)
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    data = legacyQuery.data;
+  }
 
   return (data ?? []).map((template) => {
     const entries = (template.workout_template_exercises ?? []) as {

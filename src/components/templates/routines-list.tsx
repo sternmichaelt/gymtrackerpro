@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { isMissingTemplateColumnError } from "@/lib/templates-compat";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -34,6 +35,7 @@ interface Routine {
 interface RoutinesListProps {
   activeRoutines: Routine[];
   archivedRoutines: Routine[];
+  archiveEnabled?: boolean;
 }
 
 async function saveRoutineOrder(routines: Routine[]) {
@@ -51,6 +53,7 @@ async function saveRoutineOrder(routines: Routine[]) {
 export function RoutinesList({
   activeRoutines: initialActive,
   archivedRoutines: initialArchived,
+  archiveEnabled = false,
 }: RoutinesListProps) {
   const router = useRouter();
   const [activeRoutines, setActiveRoutines] = useState(initialActive);
@@ -59,6 +62,11 @@ export function RoutinesList({
   const [deleteTarget, setDeleteTarget] = useState<Routine | null>(null);
 
   const moveRoutine = async (index: number, direction: -1 | 1) => {
+    if (!archiveEnabled) {
+      toast.error("Reorder is not available yet.");
+      return;
+    }
+
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= activeRoutines.length) return;
 
@@ -76,6 +84,11 @@ export function RoutinesList({
   };
 
   const archiveRoutine = async (routine: Routine) => {
+    if (!archiveEnabled) {
+      toast.error("Archive is not available yet.");
+      return;
+    }
+
     setLoadingId(routine.id);
     const supabase = createClient();
     const { error } = await supabase
@@ -85,7 +98,11 @@ export function RoutinesList({
 
     setLoadingId(null);
     if (error) {
-      toast.error("Could not archive routine");
+      toast.error(
+        isMissingTemplateColumnError(error)
+          ? "Archive is not available yet."
+          : "Could not archive routine"
+      );
       return;
     }
 
@@ -165,30 +182,32 @@ export function RoutinesList({
           {activeRoutines.map((routine, index) => (
             <Card key={routine.id}>
               <CardContent className="flex items-center gap-2 p-3">
-                <div className="flex flex-col">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={index === 0 || loadingId === routine.id}
-                    onClick={() => moveRoutine(index, -1)}
-                    aria-label="Move routine up"
-                  >
-                    <ChevronUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    disabled={
-                      index === activeRoutines.length - 1 || loadingId === routine.id
-                    }
-                    onClick={() => moveRoutine(index, 1)}
-                    aria-label="Move routine down"
-                  >
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </div>
+                {archiveEnabled && (
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={index === 0 || loadingId === routine.id}
+                      onClick={() => moveRoutine(index, -1)}
+                      aria-label="Move routine up"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={
+                        index === activeRoutines.length - 1 || loadingId === routine.id
+                      }
+                      onClick={() => moveRoutine(index, 1)}
+                      aria-label="Move routine down"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
 
                 <Link href={`/templates/${routine.id}`} className="min-w-0 flex-1">
                   <p className="font-medium">{routine.name}</p>
@@ -204,22 +223,25 @@ export function RoutinesList({
                   </Link>
                 </Button>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  disabled={loadingId === routine.id}
-                  onClick={() => archiveRoutine(routine)}
-                  aria-label="Archive routine"
-                >
-                  <Archive className="h-4 w-4" />
-                </Button>
+                {archiveEnabled && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    disabled={loadingId === routine.id}
+                    onClick={() => archiveRoutine(routine)}
+                    aria-label="Archive routine"
+                  >
+                    <Archive className="h-4 w-4" />
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
+      {archiveEnabled && (
       <div className="space-y-3 border-t pt-6">
         <div>
           <h2 className="text-lg font-semibold">Archived Routines</h2>
@@ -268,6 +290,7 @@ export function RoutinesList({
           </div>
         )}
       </div>
+      )}
 
       <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
         <DialogContent>

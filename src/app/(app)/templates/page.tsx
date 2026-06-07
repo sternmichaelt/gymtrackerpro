@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { ensureExampleRoutine, getTemplates } from "@/lib/queries/templates";
+import { ensureExampleRoutine, getTemplates, supportsTemplateArchive } from "@/lib/queries/templates";
 import { RoutinesList } from "@/components/templates/routines-list";
 import { Button } from "@/components/ui/button";
 
@@ -17,9 +17,10 @@ export default async function TemplatesPage() {
 
   await ensureExampleRoutine(user.id);
 
+  const archiveEnabled = await supportsTemplateArchive();
   const [activeRoutines, archivedRoutines] = await Promise.all([
     getTemplates(user.id, false),
-    getTemplates(user.id, true),
+    archiveEnabled ? getTemplates(user.id, true) : Promise.resolve([]),
   ]);
 
   return (
@@ -40,6 +41,7 @@ export default async function TemplatesPage() {
       <RoutinesList
         activeRoutines={activeRoutines}
         archivedRoutines={archivedRoutines}
+        archiveEnabled={archiveEnabled}
       />
     </div>
   );

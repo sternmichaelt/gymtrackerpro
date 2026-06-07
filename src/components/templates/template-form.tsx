@@ -25,7 +25,48 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { isMissingTemplateColumnError } from "@/lib/templates-compat";
 import type { Exercise } from "@/lib/types/database";
+
+async function insertTemplate(
+  userId: string,
+  name: string
+) {
+  const supabase = createClient();
+
+  const { data: last, error: lastError } = await supabase
+    .from("workout_templates")
+    .select("sort_order")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("sort_order", { ascending: false })
+    .limit(1);
+
+  if (!lastError) {
+    const nextSortOrder = (last?.[0]?.sort_order ?? -1) + 1;
+    const { data, error } = await supabase
+      .from("workout_templates")
+      .insert({
+        name,
+        user_id: userId,
+        sort_order: nextSortOrder,
+      })
+      .select()
+      .single();
+
+    if (!error && data) return data;
+    if (!isMissingTemplateColumnError(error)) throw error;
+  }
+
+  const { data, error } = await supabase
+    .from("workout_templates")
+    .insert({ name, user_id: userId })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
 
 interface TemplateExercise {
   id: string;
@@ -39,6 +80,7 @@ interface TemplateFormProps {
   initialName?: string;
   initialExercises?: TemplateExercise[];
   userId: string;
+  archiveEnabled?: boolean;
 }
 
 export function TemplateForm({
@@ -46,6 +88,7 @@ export function TemplateForm({
   initialName = "",
   initialExercises = [],
   userId,
+  archiveEnabled = false,
 }: TemplateFormProps) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -118,26 +161,7 @@ export function TemplateForm({
           .eq("id", id);
         if (error) throw error;
       } else {
-        const { data: last } = await supabase
-          .from("workout_templates")
-          .select("sort_order")
-          .eq("user_id", userId)
-          .eq("is_archived", false)
-          .order("sort_order", { ascending: false })
-          .limit(1);
-
-        const nextSortOrder = (last?.[0]?.sort_order ?? -1) + 1;
-
-        const { data, error } = await supabase
-          .from("workout_templates")
-          .insert({
-            name: name.trim(),
-            user_id: userId,
-            sort_order: nextSortOrder,
-          })
-          .select()
-          .single();
-        if (error) throw error;
+        const data = await insertTemplate(userId, name.trim());
         id = data.id;
       }
 
@@ -157,26 +181,7 @@ export function TemplateForm({
     setLoading(true);
     const supabase = createClient();
     try {
-      const { data: last } = await supabase
-        .from("workout_templates")
-        .select("sort_order")
-        .eq("user_id", userId)
-        .eq("is_archived", false)
-        .order("sort_order", { ascending: false })
-        .limit(1);
-
-      const nextSortOrder = (last?.[0]?.sort_order ?? -1) + 1;
-
-      const { data, error } = await supabase
-        .from("workout_templates")
-        .insert({
-          name: `${name.trim()} (Copy)`,
-          user_id: userId,
-          sort_order: nextSortOrder,
-        })
-        .select()
-        .single();
-      if (error) throw error;
+      const data = await insertTemplate(userId, `${name.trim()} (Copy)`);
 
       if (exercises.length > 0) {
         await supabase.from("workout_template_exercises").insert(
@@ -199,7 +204,10 @@ export function TemplateForm({
   };
 
   const handleArchive = async () => {
-    if (!templateId) return;
+    if (!templateId || !archiveEnabled) {
+      toast.error("Archive is not available yet. Run database migration 006.");
+      return;
+    }
     setLoading(true);
     const supabase = createClient();
     const { error } = await supabase
@@ -209,7 +217,7 @@ export function TemplateForm({
     setLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      toast.error(isMissingTemplateColumnError(error) ? "Archive is not available yet." : error.message);
       return;
     }
 
@@ -328,15 +336,17 @@ export function TemplateForm({
           >
             Duplicate Routine
           </Button>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={handleArchive}
-            disabled={loading}
-          >
-            <Archive className="mr-2 h-4 w-4" />
-            Archive Routine
-          </Button>
+          {archiveEnabled && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleArchive}
+              disabled={loading}
+            >
+              <Archive className="mr-2 h-4 w-4" />
+              Archive Routine
+            </Button>
+          )}
           <Button
             variant="destructive"
             className="w-full"
