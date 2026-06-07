@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
 import {
+  resendVerificationEmail,
   signInWithGoogle,
   signInWithPassword,
   signUp,
@@ -36,10 +37,30 @@ export function AuthForm({ mode }: AuthFormProps) {
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors },
   } = useForm<AuthFormData>({
     resolver: zodResolver(authSchema),
   });
+
+  const handleResendVerification = async () => {
+    const email = getValues("email");
+    if (!email) {
+      toast.error("Enter your email first");
+      return;
+    }
+
+    setLoading(true);
+    const result = await resendVerificationEmail(email);
+    setLoading(false);
+
+    if (result?.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success("Verification email sent. Check your inbox and spam folder.");
+  };
 
   const onSubmit = async (data: AuthFormData) => {
     setLoading(true);
@@ -62,7 +83,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           data.fullName ?? ""
         );
         if (result?.error) throw new Error(result.error);
-        toast.success("Check your email to confirm your account");
+        toast.success(
+          "Account created. Check your email (and spam folder) to confirm."
+        );
         router.push("/login");
       }
     } catch (err) {
@@ -117,10 +140,18 @@ export function AuthForm({ mode }: AuthFormProps) {
           )}
         </div>
         {mode === "login" && (
-          <div className="text-right">
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={handleResendVerification}
+              className="text-muted-foreground hover:text-foreground"
+              disabled={loading}
+            >
+              Resend verification email
+            </button>
             <Link
               href="/forgot-password"
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
             >
               Forgot password?
             </Link>

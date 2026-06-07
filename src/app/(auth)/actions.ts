@@ -30,11 +30,31 @@ export async function signUp(
   fullName: string
 ) {
   const supabase = await createClient();
+  const origin = await getOrigin();
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       data: { full_name: fullName },
+      emailRedirectTo: `${origin}/auth/callback`,
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
+
+export async function resendVerificationEmail(email: string) {
+  const supabase = await createClient();
+  const origin = await getOrigin();
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
     },
   });
 
