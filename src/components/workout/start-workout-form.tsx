@@ -5,24 +5,17 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useWorkoutStore } from "@/stores/workout-store";
 import { RoutineSelector } from "@/components/workout/routine-selector";
+import { useSavedRoutines } from "@/hooks/use-saved-routines";
+import type { SavedRoutine } from "@/lib/queries/templates-client";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
-interface Template {
-  id: string;
-  name: string;
-  workout_template_exercises?: {
-    sort_order: number;
-    exercises: Exercise | null;
-  }[];
-}
-
 interface StartWorkoutFormProps {
-  templates: Template[];
+  templates: SavedRoutine[];
   userId: string;
   routineDefaults: Record<string, Record<string, ExerciseSetDefaults>>;
 }
 
-function getTemplateExercises(template?: Template) {
+function getTemplateExercises(template?: SavedRoutine) {
   return (
     template?.workout_template_exercises
       ?.sort((a, b) => a.sort_order - b.sort_order)
@@ -38,6 +31,7 @@ export function StartWorkoutForm({
 }: StartWorkoutFormProps) {
   const router = useRouter();
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
+  const { routines, loading: loadingRoutines } = useSavedRoutines(userId, templates);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -45,7 +39,7 @@ export function StartWorkoutForm({
     setSelectedId(templateId);
 
     const template = templateId
-      ? templates.find((item) => item.id === templateId)
+      ? routines.find((item) => item.id === templateId)
       : undefined;
     const exercises = getTemplateExercises(template);
 
@@ -76,10 +70,10 @@ export function StartWorkoutForm({
   return (
     <div className="space-y-4">
       <RoutineSelector
-        templates={templates}
+        routines={routines}
         value={selectedId}
         onSelect={handleRoutineSelect}
-        loading={loading}
+        loading={loading || loadingRoutines}
       />
       <p className="text-sm text-muted-foreground">
         Pick a routine to load your exercises and start logging.

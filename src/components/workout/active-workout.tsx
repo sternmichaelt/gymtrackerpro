@@ -18,33 +18,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSavedRoutines } from "@/hooks/use-saved-routines";
 import {
   countCompletedExercises,
   formatElapsedTime,
 } from "@/lib/workout-utils";
-import type { Exercise } from "@/lib/types/database";
-
-interface RoutineTemplate {
-  id: string;
-  name: string;
-  workout_template_exercises?: {
-    sort_order: number;
-    exercises: Exercise | null;
-  }[];
-}
+import type { SavedRoutine } from "@/lib/queries/templates-client";
 
 interface ActiveWorkoutProps {
-  templates?: RoutineTemplate[];
+  userId: string;
+  initialRoutines?: SavedRoutine[];
   onComplete?: () => void;
 }
 
-export function ActiveWorkout({ templates = [], onComplete }: ActiveWorkoutProps) {
+export function ActiveWorkout({
+  userId,
+  initialRoutines = [],
+  onComplete,
+}: ActiveWorkoutProps) {
   const router = useRouter();
   const workout = useWorkoutStore((s) => s.workout);
   const pauseWorkout = useWorkoutStore((s) => s.pauseWorkout);
   const resumeWorkout = useWorkoutStore((s) => s.resumeWorkout);
   const endWorkout = useWorkoutStore((s) => s.endWorkout);
   const cancelWorkout = useWorkoutStore((s) => s.cancelWorkout);
+  const { routines } = useSavedRoutines(userId, initialRoutines);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -114,30 +112,26 @@ export function ActiveWorkout({ templates = [], onComplete }: ActiveWorkoutProps
               </span>
             </div>
           </div>
-          <SyncIndicator />
+          <div className="flex items-center gap-1">
+            <SyncIndicator />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setShowCancelDialog(true)}
+              aria-label="Cancel workout"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <RoutineSelector
-          templates={templates}
+          routines={routines}
           value={workout.templateId}
           onSelect={() => {}}
           disabled
         />
-      </div>
-
-      <div className="flex gap-2">
-        {workout.status === "paused" ? (
-          <Button variant="outline" className="flex-1" onClick={resumeWorkout}>
-            <Play className="mr-2 h-4 w-4" /> Resume
-          </Button>
-        ) : (
-          <Button variant="outline" className="flex-1" onClick={pauseWorkout}>
-            <Pause className="mr-2 h-4 w-4" /> Pause
-          </Button>
-        )}
-        <Button variant="ghost" onClick={() => setShowCancelDialog(true)}>
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
       <WorkoutSchedule />
@@ -157,6 +151,19 @@ export function ActiveWorkout({ templates = [], onComplete }: ActiveWorkoutProps
             Check off all {workout.exercises.length} exercises to save ({completedCount} done)
           </p>
         )}
+        <div className="flex justify-center pt-1">
+          {workout.status === "paused" ? (
+            <Button size="sm" variant="outline" onClick={resumeWorkout}>
+              <Play className="mr-1.5 h-3.5 w-3.5" />
+              Resume
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={pauseWorkout}>
+              <Pause className="mr-1.5 h-3.5 w-3.5" />
+              Pause
+            </Button>
+          )}
+        </div>
       </div>
 
       <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>

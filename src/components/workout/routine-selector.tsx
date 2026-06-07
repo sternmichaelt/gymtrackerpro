@@ -9,50 +9,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import type { Exercise } from "@/lib/types/database";
+import type { SavedRoutine } from "@/lib/queries/templates-client";
 
 export const EMPTY_ROUTINE_VALUE = "__empty__";
 
-interface RoutineTemplate {
-  id: string;
-  name: string;
-  workout_template_exercises?: {
-    sort_order: number;
-    exercises: Exercise | null;
-  }[];
-}
-
 interface RoutineSelectorProps {
-  templates: RoutineTemplate[];
+  routines: SavedRoutine[];
   value: string | null;
   onSelect: (templateId: string | null) => void;
   disabled?: boolean;
   loading?: boolean;
 }
 
-function getExerciseCount(template: RoutineTemplate) {
-  return (template.workout_template_exercises ?? []).filter(
+function getExerciseCount(routine: SavedRoutine) {
+  return (routine.workout_template_exercises ?? []).filter(
     (entry) => entry.exercises != null
   ).length;
 }
 
 export function RoutineSelector({
-  templates,
+  routines,
   value,
   onSelect,
   disabled = false,
   loading = false,
 }: RoutineSelectorProps) {
-  const selectValue = value ?? (disabled ? EMPTY_ROUTINE_VALUE : undefined);
+  const selectValue =
+    value ?? (disabled && !value ? EMPTY_ROUTINE_VALUE : undefined);
 
   return (
     <div className="space-y-2">
       <Label htmlFor="routine-select">Workout Routine</Label>
-      {templates.length === 0 ? (
+      {routines.length === 0 && !loading ? (
         <p className="text-sm text-muted-foreground">
           No routines yet.{" "}
           <Link href="/templates/new" className="text-primary underline">
-            Create one
+            Create one on the Routines page
           </Link>
         </p>
       ) : (
@@ -64,19 +56,17 @@ export function RoutineSelector({
           disabled={disabled || loading}
         >
           <SelectTrigger id="routine-select" className="h-11 w-full">
-            <SelectValue placeholder="Choose a routine..." />
+            <SelectValue
+              placeholder={loading ? "Loading routines..." : "Choose a routine..."}
+            />
           </SelectTrigger>
           <SelectContent>
-            {templates.map((template) => {
-              const count = getExerciseCount(template);
+            {routines.map((routine) => {
+              const count = getExerciseCount(routine);
               return (
-                <SelectItem
-                  key={template.id}
-                  value={template.id}
-                  disabled={count === 0}
-                >
-                  {template.name}
-                  {count === 0 ? " (no exercises)" : ` (${count})`}
+                <SelectItem key={routine.id} value={routine.id}>
+                  {routine.name}
+                  {count === 0 ? " (no exercises)" : ` (${count} exercises)`}
                 </SelectItem>
               );
             })}

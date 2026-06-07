@@ -12,18 +12,11 @@ import { RoutineSelector } from "@/components/workout/routine-selector";
 import { WorkoutLoader } from "@/components/workout/workout-loader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useSavedRoutines } from "@/hooks/use-saved-routines";
 import { formatWorkoutDate } from "@/lib/workout-utils";
+import type { SavedRoutine } from "@/lib/queries/templates-client";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 import type { WorkoutLoaderProps } from "@/components/workout/workout-loader";
-
-interface Template {
-  id: string;
-  name: string;
-  workout_template_exercises?: {
-    sort_order: number;
-    exercises: Exercise | null;
-  }[];
-}
 
 interface Session {
   id: string;
@@ -38,7 +31,7 @@ interface Session {
 
 interface WorkoutsHubProps {
   userId: string;
-  templates: Template[];
+  templates: SavedRoutine[];
   sessions: Session[];
   routineDefaults: Record<string, Record<string, ExerciseSetDefaults>>;
   lastPerformed: Record<string, string | null>;
@@ -47,7 +40,7 @@ interface WorkoutsHubProps {
   activeDefaults: Record<string, ExerciseSetDefaults>;
 }
 
-function getTemplateExercises(template?: Template) {
+function getTemplateExercises(template?: SavedRoutine) {
   return (
     template?.workout_template_exercises
       ?.sort((a, b) => a.sort_order - b.sort_order)
@@ -73,6 +66,7 @@ export function WorkoutsHub({
   const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const [starting, setStarting] = useState(false);
   const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const { routines, loading: loadingRoutines } = useSavedRoutines(userId, templates);
 
   useEffect(() => {
     init(userId);
@@ -86,7 +80,7 @@ export function WorkoutsHub({
     setSelectedRoutineId(templateId);
 
     const template = templateId
-      ? templates.find((item) => item.id === templateId)
+      ? routines.find((item) => item.id === templateId)
       : undefined;
     const exercises = getTemplateExercises(template);
 
@@ -142,7 +136,11 @@ export function WorkoutsHub({
 
   if (isActiveWorkout) {
     return (
-      <ActiveWorkout templates={templates} onComplete={handleComplete} />
+      <ActiveWorkout
+        userId={userId}
+        initialRoutines={routines}
+        onComplete={handleComplete}
+      />
     );
   }
 
@@ -185,10 +183,10 @@ export function WorkoutsHub({
         </div>
 
         <RoutineSelector
-          templates={templates}
+          routines={routines}
           value={selectedRoutineId}
           onSelect={handleRoutineSelect}
-          loading={starting}
+          loading={starting || loadingRoutines}
         />
 
         <p className="text-sm text-muted-foreground">

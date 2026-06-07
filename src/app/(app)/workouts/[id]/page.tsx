@@ -28,7 +28,7 @@ export default async function WorkoutPage({
     return (
       <>
         <WorkoutLoader session={session} previousDefaults={previousDefaults} />
-        <ActiveWorkout />
+        <ActiveWorkout userId={user.id} />
       </>
     );
   }
