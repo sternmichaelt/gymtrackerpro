@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GymTrack Pro
 
-## Getting Started
+Fast, mobile-first workout tracking PWA with offline sync.
 
-First, run the development server:
+## Features
+
+- Email/password + Google OAuth authentication
+- 300+ system exercises with search and filters
+- Custom exercise creation
+- Workout templates
+- Active workout tracking with QuickLogPad (sub-3-second set logging)
+- Full offline workout logging with auto-sync
+- Workout history and progress analytics
+- Personal records and volume charts
+- Installable PWA
+
+## Tech Stack
+
+- Next.js 16 (App Router) + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (PostgreSQL, Auth, RLS)
+- Zustand + Dexie (offline sync)
+- Recharts + Serwist (PWA)
+
+## Setup
+
+### 1. Install dependencies
+
+```bash
+npm install
+```
+
+### 2. Configure environment
+
+Copy `.env.local.example` to `.env.local` and fill in your Supabase credentials:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+```
+
+### 3. Set up Supabase
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run the migration: `supabase/migrations/001_initial_schema.sql`
+3. Run the seed: `supabase/seed.sql`
+4. Enable Google OAuth in Authentication > Providers
+5. Add redirect URL: `http://localhost:3000/auth/callback`
+
+### 4. Run locally
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 5. Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**: Deploy to Vercel, add env vars
+- **Backend**: Supabase handles database and auth
+- Update OAuth redirect URLs to your production domain
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+├── app/           # Pages and routes
+├── components/    # UI components
+├── lib/           # Supabase, analytics, offline sync
+├── stores/        # Zustand workout store
+supabase/
+├── migrations/    # Database schema
+└── seed.sql       # Exercise seed data
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## PWA
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The app is installable on iOS Safari and Android Chrome. Serwist handles service worker caching. Offline workout data syncs automatically when back online.
 
-## Deploy on Vercel
+Build for production:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm start
+```
