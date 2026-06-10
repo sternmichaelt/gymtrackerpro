@@ -30,7 +30,7 @@ export function CurrentWorkoutSection() {
   const { completed, total, percent } = getWorkoutProgress(exercises);
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-3">
       <div>
         <h2 className="text-lg font-semibold">
           {workout.templateName ?? "Current Workout"}
@@ -40,14 +40,22 @@ export function CurrentWorkoutSection() {
         </p>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-muted">
+      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-primary transition-all duration-300"
           style={{ width: `${percent}%` }}
         />
       </div>
 
-      <div className="space-y-2">
+      <div className="overflow-hidden rounded-lg border">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)_2.75rem_2.75rem_3.25rem] gap-1.5 border-b bg-muted/40 px-1 py-1.5 text-xs font-medium text-muted-foreground sm:gap-2 sm:px-2">
+          <span className="w-7 text-center">Done</span>
+          <span>Exercise</span>
+          <span className="text-center">Sets</span>
+          <span className="text-center">Reps</span>
+          <span className="text-center">lbs</span>
+        </div>
+
         {exercises.map((exercise, index) => (
           <WorkoutExerciseRow key={exercise.id} exercise={exercise} index={index} />
         ))}
