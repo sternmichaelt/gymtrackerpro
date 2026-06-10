@@ -1,17 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { ChevronLeft, Dumbbell, LayoutList } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  Dumbbell,
+  LayoutList,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useWorkoutStore } from "@/stores/workout-store";
+import { CurrentWorkoutSection } from "@/components/workout/current-workout-section";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { useSavedRoutines } from "@/hooks/use-saved-routines";
 import { cn } from "@/lib/utils";
 import type { SavedRoutine } from "@/lib/queries/templates-client";
 import type { Exercise, ExerciseSetDefaults } from "@/lib/types/database";
 
-type Step = "menu" | "routines" | "exercise";
+type PickerMode = "menu" | "routines" | "exercise";
 
 interface WorkoutStartProps {
   userId: string;
@@ -39,199 +48,288 @@ export function WorkoutStart({
   templates,
   routineDefaults = {},
 }: WorkoutStartProps) {
-  const [step, setStep] = useState<Step>("menu");
-  const [selectedRoutineId, setSelectedRoutineId] = useState<string | null>(null);
+  const [startOpen, setStartOpen] = useState(true);
+  const [pickerMode, setPickerMode] = useState<PickerMode>("menu");
+  const [previewRoutineId, setPreviewRoutineId] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const init = useWorkoutStore((s) => s.init);
+  const workout = useWorkoutStore((s) => s.workout);
+  const startWorkout = useWorkoutStore((s) => s.startWorkout);
   const { routines, loading } = useSavedRoutines(userId, templates);
   const savedRoutines = routines.length > 0 ? routines : templates;
 
-  const selectedRoutine = selectedRoutineId
-    ? savedRoutines.find((routine) => routine.id === selectedRoutineId)
+  const previewRoutine = previewRoutineId
+    ? savedRoutines.find((routine) => routine.id === previewRoutineId)
     : null;
-  const selectedExercises = getTemplateExercises(selectedRoutine ?? undefined);
+  const previewExercises = getTemplateExercises(previewRoutine ?? undefined);
 
-  if (step === "routines") {
-    return (
-      <div className="space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2"
-          onClick={() => {
-            setSelectedRoutineId(null);
-            setStep("menu");
-          }}
-        >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Back
-        </Button>
+  useEffect(() => {
+    init(userId);
+  }, [init, userId]);
 
-        <div>
-          <h1 className="text-2xl font-bold">Choose a Routine</h1>
-          <p className="text-muted-foreground">Select one of your saved routines</p>
-        </div>
+  const returnToLanding = () => {
+    setPreviewRoutineId(null);
+    setPickerMode("menu");
+    setStartOpen(false);
+  };
 
-        {loading && savedRoutines.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            Loading routines...
-          </p>
-        ) : savedRoutines.length === 0 ? (
-          <div className="space-y-3 py-8 text-center">
-            <p className="text-muted-foreground">No saved routines yet</p>
-            <Button asChild>
-              <Link href="/templates/new">Create a Routine</Link>
-            </Button>
-          </div>
-        ) : (
-          <>
-            <div className="space-y-2">
-              {savedRoutines.map((routine) => {
-                const count = getExerciseCount(routine);
-                const isSelected = selectedRoutineId === routine.id;
-                return (
-                  <button
-                    key={routine.id}
-                    type="button"
-                    className={cn(
-                      "flex w-full items-center justify-between rounded-xl border p-4 text-left transition-colors hover:bg-muted/50",
-                      isSelected && "border-primary bg-primary/5"
-                    )}
-                    onClick={() => setSelectedRoutineId(routine.id)}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-semibold">{routine.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {count} exercise{count === 1 ? "" : "s"}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+  const handleStartWorkout = async () => {
+    if (!previewRoutine) return;
 
-            {selectedRoutine && (
-              <section className="space-y-3 border-t pt-4">
-                <div>
-                  <h2 className="text-lg font-semibold">{selectedRoutine.name}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedExercises.length} exercise
-                    {selectedExercises.length === 1 ? "" : "s"} in this workout
-                  </p>
-                </div>
+    const exercises = getTemplateExercises(previewRoutine);
+    if (exercises.length === 0) {
+      toast.error("Add exercises to this routine first");
+      return;
+    }
 
-                {selectedExercises.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-6 text-center text-sm text-muted-foreground">
-                      No exercises in this routine yet.{" "}
-                      <Link
-                        href={`/templates/${selectedRoutine.id}`}
-                        className="text-primary underline"
-                      >
-                        Add exercises
-                      </Link>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <ul className="space-y-2">
-                    {selectedExercises.map((exercise, index) => {
-                      const last =
-                        routineDefaults[selectedRoutine.id]?.[exercise.id];
-                      return (
-                        <li
-                          key={exercise.id}
-                          className="flex items-center justify-between gap-3 rounded-xl border p-3"
-                        >
-                          <div className="min-w-0 space-y-1">
-                            <p className="font-medium">
-                              {index + 1}. {exercise.name}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              <Badge variant="secondary">
-                                {exercise.muscle_group}
-                              </Badge>
-                              <Badge variant="outline">
-                                {exercise.equipment_type}
-                              </Badge>
-                            </div>
-                          </div>
-                          {last?.reps != null && last?.weight != null && (
-                            <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                              {last.reps} × {last.weight} lbs
-                            </span>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-            )}
-          </>
-        )}
-      </div>
-    );
-  }
+    setStarting(true);
+    try {
+      await startWorkout(
+        userId,
+        exercises,
+        previewRoutine.id,
+        routineDefaults[previewRoutine.id] ?? {},
+        previewRoutine.name
+      );
+      returnToLanding();
+    } catch {
+      toast.error("Could not start workout");
+    } finally {
+      setStarting(false);
+    }
+  };
 
-  if (step === "exercise") {
-    return (
-      <div className="space-y-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2"
-          onClick={() => setStep("menu")}
-        >
-          <ChevronLeft className="mr-1 h-4 w-4" />
-          Back
-        </Button>
-
-        <div>
-          <h1 className="text-2xl font-bold">Add Single Exercise</h1>
-          <p className="text-muted-foreground">Exercise picker coming next</p>
-        </div>
-      </div>
-    );
-  }
+  const startSummary =
+    workout?.templateName ??
+    (pickerMode === "routines"
+      ? previewRoutine?.name ?? "Choosing a routine"
+      : pickerMode === "exercise"
+        ? "Single exercise"
+        : "Pick how to start");
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Workouts</h1>
-        <p className="text-muted-foreground">How would you like to start?</p>
+        <p className="text-muted-foreground">Start a workout and track your sets below.</p>
       </div>
 
-      <div className="space-y-3">
+      <div className="overflow-hidden rounded-xl border">
         <button
           type="button"
-          className="flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
-          onClick={() => setStep("routines")}
+          className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-muted/50"
+          onClick={() => setStartOpen((open) => !open)}
+          aria-expanded={startOpen}
         >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <LayoutList className="h-6 w-6" />
+          <div className="min-w-0">
+            <p className="font-semibold">Start Workout</p>
+            <p className="truncate text-sm text-muted-foreground">{startSummary}</p>
           </div>
-          <div>
-            <p className="font-semibold">Start Workout with a Routine</p>
-            <p className="text-sm text-muted-foreground">
-              Add all exercises from one of your routines
-            </p>
-          </div>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 shrink-0 text-muted-foreground transition-transform",
+              startOpen && "rotate-180"
+            )}
+          />
         </button>
 
-        <button
-          type="button"
-          className="flex w-full items-center gap-4 rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
-          onClick={() => setStep("exercise")}
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Dumbbell className="h-6 w-6" />
+        {startOpen && (
+          <div className="space-y-4 border-t px-4 pb-4 pt-3">
+            {pickerMode === "routines" ? (
+              previewRoutine ? (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-2 shrink-0"
+                      onClick={() => setPreviewRoutineId(null)}
+                    >
+                      <ChevronLeft className="mr-1 h-4 w-4" />
+                      Back
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="shrink-0"
+                      disabled={starting || previewExercises.length === 0}
+                      onClick={handleStartWorkout}
+                    >
+                      {starting ? "Starting..." : "Start Workout"}
+                    </Button>
+                  </div>
+
+                  <div>
+                    <p className="font-medium">{previewRoutine.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {previewExercises.length} exercise
+                      {previewExercises.length === 1 ? "" : "s"} in this routine
+                    </p>
+                  </div>
+
+                  {previewExercises.length === 0 ? (
+                    <Card>
+                      <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                        No exercises in this routine yet.{" "}
+                        <Link
+                          href={`/templates/${previewRoutine.id}`}
+                          className="text-primary underline"
+                        >
+                          Add exercises
+                        </Link>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <ul className="space-y-2">
+                      {previewExercises.map((exercise, index) => {
+                        const last =
+                          routineDefaults[previewRoutine.id]?.[exercise.id];
+                        return (
+                          <li
+                            key={exercise.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border p-3"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <p className="font-medium">
+                                {index + 1}. {exercise.name}
+                              </p>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Badge variant="secondary">
+                                  {exercise.muscle_group}
+                                </Badge>
+                                <Badge variant="outline">
+                                  {exercise.equipment_type}
+                                </Badge>
+                              </div>
+                            </div>
+                            {last?.reps != null && last?.weight != null && (
+                              <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                                {last.reps} × {last.weight} lbs
+                              </span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-ml-2"
+                    onClick={() => setPickerMode("menu")}
+                  >
+                    <ChevronLeft className="mr-1 h-4 w-4" />
+                    Back
+                  </Button>
+
+                  <div>
+                    <p className="font-medium">Choose a Routine</p>
+                    <p className="text-sm text-muted-foreground">
+                      Tap a routine to preview its exercises
+                    </p>
+                  </div>
+
+                  {loading && savedRoutines.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-muted-foreground">
+                      Loading routines...
+                    </p>
+                  ) : savedRoutines.length === 0 ? (
+                    <div className="space-y-3 py-6 text-center">
+                      <p className="text-sm text-muted-foreground">No saved routines yet</p>
+                      <Button asChild size="sm">
+                        <Link href="/templates/new">Create a Routine</Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {savedRoutines.map((routine) => {
+                        const count = getExerciseCount(routine);
+                        const isActive = workout?.templateId === routine.id;
+                        return (
+                          <button
+                            key={routine.id}
+                            type="button"
+                            className={cn(
+                              "flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors hover:bg-muted/50",
+                              isActive && "border-primary bg-primary/5"
+                            )}
+                            onClick={() => setPreviewRoutineId(routine.id)}
+                          >
+                            <div className="min-w-0">
+                              <p className="font-medium">{routine.name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {count} exercise{count === 1 ? "" : "s"}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )
+            ) : pickerMode === "exercise" ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="-ml-2"
+                  onClick={() => setPickerMode("menu")}
+                >
+                  <ChevronLeft className="mr-1 h-4 w-4" />
+                  Back
+                </Button>
+                <div>
+                  <p className="font-medium">Add Single Exercise</p>
+                  <p className="text-sm text-muted-foreground">
+                    Exercise picker coming next
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+                  onClick={() => setPickerMode("routines")}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <LayoutList className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Start Workout with a Routine</p>
+                    <p className="text-sm text-muted-foreground">
+                      Preview a routine and load its exercises
+                    </p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-lg border p-3 text-left transition-colors hover:bg-muted/50"
+                  onClick={() => setPickerMode("exercise")}
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <Dumbbell className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Single Exercise</p>
+                    <p className="text-sm text-muted-foreground">
+                      Add one exercise to today&apos;s workout
+                    </p>
+                  </div>
+                </button>
+              </div>
+            )}
           </div>
-          <div>
-            <p className="font-semibold">Single Exercise</p>
-            <p className="text-sm text-muted-foreground">
-              Pick one exercise to add to today&apos;s workout
-            </p>
-          </div>
-        </button>
+        )}
       </div>
+
+      <Separator />
+
+      <CurrentWorkoutSection />
     </div>
   );
 }

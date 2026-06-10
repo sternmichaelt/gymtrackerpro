@@ -123,3 +123,16 @@ html.dark[data-color="teal"] {
   --ring: oklch(0.72 0.1 195);
   --sidebar-primary: oklch(0.72 0.1 195);
 }
+
+/* Tie borders and outlines to the selected accent color */
+html[data-color]:not([data-color="classic"]) {
+  --border: color-mix(in oklch, var(--primary) 42%, var(--background));
+  --input: color-mix(in oklch, var(--primary) 42%, var(--background));
+  --sidebar-border: color-mix(in oklch, var(--primary) 42%, var(--background));
+}
+
+html.dark[data-color]:not([data-color="classic"]) {
+  --border: color-mix(in oklch, var(--primary) 58%, transparent);
+  --input: color-mix(in oklch, var(--primary) 58%, transparent);
+  --sidebar-border: color-mix(in oklch, var(--primary) 58%, transparent);
+}

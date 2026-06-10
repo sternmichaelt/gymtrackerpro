@@ -6,13 +6,19 @@ export function isExerciseComplete(set: {
   return set.completedAt != null && set.weight != null && set.reps != null;
 }
 
+export function isWorkoutExerciseComplete(exercise: {
+  sets: { weight: number | null; reps: number | null; completedAt: string | null }[];
+}) {
+  return (
+    exercise.sets.length > 0 &&
+    exercise.sets.every((set) => isExerciseComplete(set))
+  );
+}
+
 export function countCompletedExercises(
   exercises: { sets: { weight: number | null; reps: number | null; completedAt: string | null }[] }[]
 ) {
-  return exercises.filter((exercise) => {
-    const set = exercise.sets[0];
-    return set && isExerciseComplete(set);
-  }).length;
+  return exercises.filter((exercise) => isWorkoutExerciseComplete(exercise)).length;
 }
 
 export function getWorkoutProgress(
